@@ -1,14 +1,25 @@
-[TOC]
+# Actions
+
+ - [What is an Action?]
+ - [Charm Creators]
+   - [Actions on the Charm]
+ - [Frontend Hackers]
+ - [Backend Hackers]
+ - [Juju Users]
+
+TODO: Add actual links in TOC, spruce up formatting?
+
+---
 
 # Actions, Services, and Charms
 
 An Action is an executable defined on the Charm.  Actions are controlled 
 and observed by the Juju client using a well-defined set of API endpoints,
 which are called either via CLI or web frontend.  This document contains the
-[definition][def], [client operation][cli], [lifecycle][life], and [technical
+[definition](def), [client operation](cli), [lifecycle][life], and [technical
 details][tech] of Actions.
 
-TODO: Add these links at the bottom e.g. [cli]: blahblah
+TODO: Fix crappy links
 
 ---
 
@@ -21,20 +32,67 @@ script or file, which runs in a Hook environment; therefore, certain
 environment variables and calls can be used to interact with the environment.
 
 The Charm author must also define an actions.yaml file in the Charm root
-directory.  This file 
+directory.  This file must begin with the key "actions:"; after that, each
+Action must be listed with a "description:" key and an optional "params:"
+key.  If "params:" is given, it must contain a schema compliant with
+[JSON-Schema draft 4](http://json-schema.org/latest/json-schema-core.html).
 
-TODO: Explain the structure of actions.yaml.
-TODO: Example actions.yaml
-TODO: Explain how actions.yaml must be JSON-Schema compliant.
+Names of actions and parameters must start and end with a lowercase alpha
+character, and may only contain hyphens and lowercase alpha characters.
+
+Example:
+
+actions.yaml
+
+```
+actions: 
+   snapshot:
+      description: Take a snapshot of the database.
+      params:
+         outfile:
+            description: The file to write out to.
+            type: string
+            default: foo.bz2
+         compression-type:
+            $schema: http://json-schema.org/draft-04/schema#
+            title: Compression type
+            description: The kind and quality of snapshot compression
+            type: object
+            properties:
+               kind:
+                  description: The compression tool to use.
+                  type: string
+               quality:
+                  description: Compression quality from 0 to 9.
+                  minimum: 0
+                  maximum: 9
+            required: [kind]
+   kill:
+      description: Kill the database.
+```
 
 TODO: Link to Hook.
 TODO: Link to environment documentation, or write it.
 TODO: Fill in details of what environment calls and variables exactly are
-available.
+available via the Hook environment.
+
+--- 
 
 # Frontend Hackers
+
+TODO: Fill me in!
+
+---
+
 # Backend Hackers
+
+TODO: Fill me in!
+
+---
+
 # Juju Users
+
+TODO: Fill me in!
 
 
 ***COMMENTS REQUESTED *** (especially from frontend hackers, see item 3)
