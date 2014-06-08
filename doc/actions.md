@@ -54,7 +54,7 @@ character, and may only contain hyphens and lowercase alpha characters.
 
 Example:
 
-```
+```yaml
 #
 # sample actions.yaml
 #
