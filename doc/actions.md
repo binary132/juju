@@ -35,8 +35,8 @@ which are called either via CLI or web frontend.  This document contains the
 
 ## Actions on the Charm
 
-Actions are defined as [Hooks](charms-in-action#hooks) on the Charm.  An Action is simply an executable
-script or file, which runs in a [Hook environment](charms-in-action#execution-environment); therefore, certain
+Actions are defined as [Hooks](charms-in-action.md#hooks) on the Charm.  An Action is simply an executable
+script or file, which runs in a [Hook environment](charms-in-action.md#execution-environment); therefore, certain
 environment variables and calls can be used to interact with the environment.
 
 The Charm author must also define an actions.yaml file in the Charm root
