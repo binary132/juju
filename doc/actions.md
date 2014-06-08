@@ -1,13 +1,18 @@
 # Actions
 
  - [What is an Action?](#actions-services-and-charms)
- - [Charm Creators]
-   - [Actions on the Charm]
- - [Frontend Hackers]
- - [Backend Hackers]
- - [Juju Users]
+ - [Charm Creators](#charm-creators)
+   - [Actions on the Charm](#actions-on-the-charm)
+ - [Frontend Hackers](#frontend-hackers)
+ - [Backend Hackers](#backend-hackers)
+   - [Client API for Actions](#client-api-for-actions)
+   - [Lifecycle of an Action](#lifecycle-of-an-action)
+   - [State Machinery](#state-machinery)
+   - [Actions Results](#actions-results)
+   - [Actions Log](#actions-log)
+ - [Juju Users](#juju-users)
 
-TODO: Add actual links in TOC, spruce up formatting?
+TODO: spruce up formatting?
 
 ---
 
@@ -16,8 +21,8 @@ TODO: Add actual links in TOC, spruce up formatting?
 An Action is an executable defined on the Charm.  Actions are controlled 
 and observed by the Juju client using a well-defined set of API endpoints,
 which are called either via CLI or web frontend.  This document contains the
-[definition](def), [client operation](cli), [lifecycle][life], and [technical
-details][tech] of Actions.
+[definition](#actions-services-and-charms), [client operation](#client-api-for-actions), [lifecycle][#lifecycle-of-an-action], and [technical
+details][#state-machinery] of Actions.
 
 TODO: Fix crappy links
 
@@ -27,8 +32,8 @@ TODO: Fix crappy links
 
 ## Actions on the Charm
 
-Actions are defined as Hooks on the Charm.  An Action is simply an executable
-script or file, which runs in a Hook environment; therefore, certain
+Actions are defined as [Hooks](charms-in-action#hooks) on the Charm.  An Action is simply an executable
+script or file, which runs in a [Hook environment](charms-in-action#execution-environment); therefore, certain
 environment variables and calls can be used to interact with the environment.
 
 The Charm author must also define an actions.yaml file in the Charm root
@@ -36,15 +41,21 @@ directory.  This file must begin with the key "actions:"; after that, each
 Action must be listed with a "description:" key and an optional "params:"
 key.  If "params:" is given, it must contain a schema compliant with
 [JSON-Schema draft 4](http://json-schema.org/latest/json-schema-core.html).
+See http://json-schema.org for examples and more details.
+
+This document is used to define the schema which is used to validate the
+parameters passed with inbound Action commands.  See [Validation](#param-validation-with-gojsonschema).
 
 Names of actions and parameters must start and end with a lowercase alpha
 character, and may only contain hyphens and lowercase alpha characters.
 
 Example:
 
-actions.yaml
-
 ```
+#
+# sample actions.yaml
+#
+
 actions: 
    snapshot:
       description: Take a snapshot of the database.
@@ -71,8 +82,6 @@ actions:
       description: Kill the database.
 ```
 
-TODO: Link to Hook.
-TODO: Link to environment documentation, or write it.
 TODO: Fill in details of what environment calls and variables exactly are
 available via the Hook environment.
 
@@ -80,13 +89,23 @@ available via the Hook environment.
 
 # Frontend Hackers
 
-TODO: Fill me in!
+TODO: Fill me in!  Get talking with frontend crew!
 
 ---
 
 # Backend Hackers
 
-TODO: Fill me in!
+## Client API for Actions
+
+## Lifecycle of an Action
+
+## State Machinery
+
+## Actions Results
+
+## Actions Log
+
+## Param Validation with [gojsonschema](http://github.com/binary132/gojsonschema)
 
 ---
 
