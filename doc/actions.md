@@ -1,6 +1,6 @@
 # Actions
 
- - [What is an Action?]
+ - [What is an Action?](#actions-services-and-charms)
  - [Charm Creators]
    - [Actions on the Charm]
  - [Frontend Hackers]
