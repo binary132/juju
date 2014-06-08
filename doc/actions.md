@@ -1,5 +1,3 @@
-#Juju Actions
-
 [TOC]
 
 # Actions, Services, and Charms
