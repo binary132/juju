@@ -188,6 +188,7 @@ imports (
 			// ...
 		}
 // ...
+```
 
 This technique is used to validate params when an Action comes into State
 from the API, as well as to validate params upon delivery to the Service or
