@@ -12,6 +12,7 @@
      * [Actions Results](#actions-results)
      * [Actions Log](#actions-log)
    - [Param Validation with gojsonschema](#param-validation-with-gojsonschema)
+     * [Charm Actions Schema](#charm-actions-schema)
    - [Actions at the Service Level](#actions-at-the-service-level)
      * [Actions Watcher](#actions-watcher)
      * [Uniter Loop](#uniter-loop)
@@ -28,6 +29,7 @@ An Action is an executable defined on the Charm.  Actions are controlled
 and observed by the Juju client using a well-defined set of API endpoints,
 which are called either via CLI or web frontend.  This document contains the
 [definition](#actions-services-and-charms), [client operation](#client-api-for-actions), [lifecycle](#lifecycle-of-an-action), and [technical](#state-machinery) [details](#actions-at-the-service-level) of Actions.
+
 
 ---
 
@@ -111,6 +113,87 @@ TODO: Fill me in!  Get talking with frontend crew!
 ### Actions Log
 
 ## Param Validation with [gojsonschema](http://github.com/binary132/gojsonschema)
+
+### Action Parameter Validation
+
+Action schemas are defined by the Charm in order to validate parameters
+passed to Actions, and to define the GUI by which Actions are triggered.  The
+schema is loaded from YAML in the Charm and validated at runtime, and is used
+to build a [JSON-Schema](http://json-schema.org) document using [gojsonschema](http://github.com/binary132/gojsonschema).
+
+### gojsonschema 
+
+[gojsonschema](http://github.com/binary132/gojsonschema) defines several useful types and methods which can be used
+to validate or invalidate incoming JSON param maps against the Action's defined schema.
+
+ - [JsonSchemaDocument](https://godoc.org/github.com/binary132/gojsonschema#JsonSchemaDocument)
+   * func (*JsonSchemaDocument) [Validate](https://godoc.org/github.com/binary132/gojsonschema#JsonSchemaDocument.Validate) (document interface{}) *[ValidationResult](https://godoc.org/github.com/binary132/gojsonschema#ValidationResult): Validates a JSON document against the defined JSON-Schema.
+ - [ValidationResult](https://godoc.org/github.com/binary132/gojsonschema#ValidationResult)
+   * func (*ValidationResult) [Errors](https://godoc.org/github.com/binary132/gojsonschema#ValidationResult.Errors) [][ValidationError](https://godoc.org/github.com/binary132/gojsonschema#ValidationError): Returns a list of [ValidationError](https://godoc.org/github.com/binary132/gojsonschema#ValidationError)s which occurred during the validation.  These can be introspected or simply have String() run on them.
+   * func (*ValidationResult) [Valid](https://godoc.org/github.com/binary132/gojsonschema#ValidationResult.Valid) bool: was the passed JSON document valid?
+ - [ValidationError](https://godoc.org/github.com/binary132/gojsonschema#ValidationError)
+```go
+type ValidationError struct {
+    Context     *jsonContext // Tree like notation of the part that failed the validation. ex (root).a.b ...
+    Description string       // A human readable error message
+    Value       interface{}  // Value given by the JSON file that is the source of the error
+}
+```
+   - func (ValidationError) [String](https://godoc.org/github.com/binary132/gojsonschema#ValidationError.String) string: returns a human-readable string describing the validation error.
+
+### Charm Actions Schema
+
+The charm/actions.go Actions type is defined as follows:
+
+```go
+type Actions struct {                                                         
+        ActionSpecs map[string]ActionSpec
+}
+
+type ActionSpec struct {
+	Description string
+	Params map[string]interface{}
+}
+```
+
+The "Params" map for each Action in the list must conform to JSON-Schema,
+since it is what the validation documents are built against.  When the Charm
+is loaded via Bundle or Dir, [ReadActionsYaml](https://github.com/juju/juju/blob/master/charm/actions.go#L38) loads an Actions struct
+from YAML and checks to ensure that it conforms to JSON-Schema Draft 4.  When
+the Charm is added to the Charm representation in State, the Actions type is
+serialized into the database for later use.  A Charm's Actions spec can be
+retrieved from the Charm via [Charm.Actions()](https://github.com/juju/juju/blob/master/charm/charm.go#L16) on an implementing type.
+
+Note that any types which implement Charm must also implement Actions().
+
+### Validation
+
+Any JSON document defining an Action params map may be validated against its
+respective Actions.ActionSpecs.Params[<action name>] map using gojsonschema
+as follows:
+
+```go
+imports ( 
+//	...
+	gjs "github.com/binary132/gojsonschema"
+	"github.com/juju/juju/charm"
+//	...
+)
+
+// ...
+	validationDoc := gojsonschema.NewJsonSchemaDocument(someCharm.Actions())
+	validationResult := validationDoc.Validate(actionArgsJson)
+	if !validationResult.Valid() {
+		for i, vErr := validationResult.Errors() {
+			// ...
+		}
+// ...
+
+This technique is used to validate params when an Action comes into State
+from the API, as well as to validate params upon delivery to the Service or
+Unit as the real states of those entities may change in flight.
+
+TODO: Define where this occurs in more detail.
 
 ## Actions at the Service Level 
 
