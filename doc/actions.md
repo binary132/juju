@@ -175,7 +175,7 @@ as follows:
 ```go
 imports ( 
 //	...
-	gjs "github.com/binary132/gojsonschema"
+	"github.com/binary132/gojsonschema"
 	"github.com/juju/juju/charm"
 //	...
 )
