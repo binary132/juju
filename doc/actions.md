@@ -1,3 +1,44 @@
+#Juju Actions
+
+[TOC]
+
+# Actions, Services, and Charms
+
+An Action is an executable defined on the Charm.  Actions are controlled 
+and observed by the Juju client using a well-defined set of API endpoints,
+which are called either via CLI or web frontend.  This document contains the
+[definition][def], [client operation][cli], [lifecycle][life], and [technical
+details][tech] of Actions.
+
+TODO: Add these links at the bottom e.g. [cli]: blahblah
+
+---
+
+# Charm Creators
+
+## Actions on the Charm
+
+Actions are defined as Hooks on the Charm.  An Action is simply an executable
+script or file, which runs in a Hook environment; therefore, certain
+environment variables and calls can be used to interact with the environment.
+
+The Charm author must also define an actions.yaml file in the Charm root
+directory.  This file 
+
+TODO: Explain the structure of actions.yaml.
+TODO: Example actions.yaml
+TODO: Explain how actions.yaml must be JSON-Schema compliant.
+
+TODO: Link to Hook.
+TODO: Link to environment documentation, or write it.
+TODO: Fill in details of what environment calls and variables exactly are
+available.
+
+# Frontend Hackers
+# Backend Hackers
+# Juju Users
+
+
 ***COMMENTS REQUESTED *** (especially from frontend hackers, see item 3)
 
 I think there are three main consumers with different needs that this doc should address.  I think the doc should have a [TOC] at the top, with a #primary header for each consumer, addressing the following needs perhaps in ##secondary headers.
