@@ -8,8 +8,14 @@
    - [Client API for Actions](#client-api-for-actions)
    - [Lifecycle of an Action](#lifecycle-of-an-action)
    - [State Machinery](#state-machinery)
-   - [Actions Results](#actions-results)
-   - [Actions Log](#actions-log)
+     * [Actions Collection](#actions-collection)
+     * [Actions Results](#actions-results)
+     * [Actions Log](#actions-log)
+   - [Param Validation with gojsonschema](#param-validation-with-gojsonschema)
+   - [Actions at the Service Level](#actions-at-the-service-level)
+     * [Actions Watcher](#actions-watcher)
+     * [Uniter Loop](#uniter-loop)
+     * [Hook Environment](#hook-environment)
  - [Juju Users](#juju-users)
 
 TODO: spruce up formatting?
@@ -21,10 +27,7 @@ TODO: spruce up formatting?
 An Action is an executable defined on the Charm.  Actions are controlled 
 and observed by the Juju client using a well-defined set of API endpoints,
 which are called either via CLI or web frontend.  This document contains the
-[definition](#actions-services-and-charms), [client operation](#client-api-for-actions), [lifecycle][#lifecycle-of-an-action], and [technical
-details][#state-machinery] of Actions.
-
-TODO: Fix crappy links
+[definition](#actions-services-and-charms), [client operation](#client-api-for-actions), [lifecycle](#lifecycle-of-an-action), and [technical](#state-machinery) [details](#actions-at-the-service-level) of Actions.
 
 ---
 
@@ -101,11 +104,21 @@ TODO: Fill me in!  Get talking with frontend crew!
 
 ## State Machinery
 
-## Actions Results
+### Actions Collection
 
-## Actions Log
+### Actions Results
+
+### Actions Log
 
 ## Param Validation with [gojsonschema](http://github.com/binary132/gojsonschema)
+
+## Actions at the Service Level 
+
+### Actions Watcher
+
+### Uniter Loop
+
+### Hook Environment
 
 ---
 
