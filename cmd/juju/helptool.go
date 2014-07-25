@@ -38,7 +38,13 @@ func (dummyHookContext) ConfigSettings() (charm.Settings, error) {
 func (dummyHookContext) ActionParams() map[string]interface{} {
 	return nil
 }
-
+func (dummyHookContext) ActionResults() (map[string]interface{}, bool) {
+	return nil, false
+}
+func (dummyHookContext) ActionSetResults(results map[string]interface{}) {
+}
+func (dummyHookContext) ActionSetFailed(error) {
+}
 func (dummyHookContext) HookRelation() (jujuc.ContextRelation, bool) {
 	return nil, false
 }

@@ -38,8 +38,19 @@ type Context interface {
 	// Config returns the current service configuration of the executing unit.
 	ConfigSettings() (charm.Settings, error)
 
-	// ActionParams returns the map of params passed with an Action.
+	// ActionParams is the map of parameters delivered as arguments to an action.
 	ActionParams() map[string]interface{}
+
+	// ActionSetResults sets the returned values of the Action, which will be
+	// delivered to the state server upon completion of the Action.
+	ActionSetResults(map[string]interface{})
+
+	// ActionResults retrieves the state set by ActionSetResults.
+	ActionResults() (map[string]interface{}, bool)
+
+	// ActionSetFailed sets an error value for the Action and makes it unable to
+	// add more values unless SetFailed(nil) is passed.
+	ActionSetFailed(error)
 
 	// HookRelation returns the ContextRelation associated with the executing
 	// hook if it was found, and whether it was found.

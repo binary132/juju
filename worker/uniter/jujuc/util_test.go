@@ -79,11 +79,13 @@ func setSettings(c *gc.C, ru *state.RelationUnit, settings map[string]interface{
 }
 
 type Context struct {
-	actionParams map[string]interface{}
-	ports        set.Strings
-	relid        int
-	remote       string
-	rels         map[int]*ContextRelation
+	actionParams  map[string]interface{}
+	actionResults map[string]interface{}
+	actionErr     error
+	ports         set.Strings
+	relid         int
+	remote        string
+	rels          map[int]*ContextRelation
 }
 
 func (c *Context) UnitName() string {
@@ -120,6 +122,27 @@ func (c *Context) ConfigSettings() (charm.Settings, error) {
 
 func (c *Context) ActionParams() map[string]interface{} {
 	return c.actionParams
+}
+
+func (c *Context) ActionSetResults(results map[string]interface{}) {
+	c.actionResults = results
+}
+
+func (c *Context) ActionResults() (map[string]interface{}, bool) {
+	if c.actionResults == nil {
+		return map[string]interface{}{}, c.actionErr != nil
+	}
+	return c.actionResults, c.actionErr != nil
+}
+
+func (c *Context) ActionSetFailed(err error) {
+	if c.actionErr == nil {
+		c.actionErr = err
+	} else if err == nil {
+		c.actionErr = nil
+	} else {
+		c.actionErr = fmt.Errorf("%s: %s", err, c.actionErr)
+	}
 }
 
 func (c *Context) HookRelation() (jujuc.ContextRelation, bool) {
