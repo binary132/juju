@@ -10,8 +10,8 @@ import (
 	"launchpad.net/gnuflag"
 )
 
-// ActionGetCommand implements the relation-get command.
-type ActionGetCommand struct {
+// ResultsSetCommand implements the relation-get command.
+type ResultsSetCommand struct {
 	cmd.CommandBase
 	ctx      Context
 	keys     []string
@@ -19,29 +19,30 @@ type ActionGetCommand struct {
 	out      cmd.Output
 }
 
-func NewActionGetCommand(ctx Context) cmd.Command {
-	return &ActionGetCommand{ctx: ctx}
+func NewResultsSetCommand(ctx Context) cmd.Command {
+	return &ResultsSetCommand{ctx: ctx}
 }
 
-func (c *ActionGetCommand) Info() *cmd.Info {
+func (c *ResultsSetCommand) Info() *cmd.Info {
 	doc := `
-action-get will print the value of the parameter at the given key, serialized
-as YAML.  If multiple keys are passed, action-get will recurse into the param
-map as needed.
+results-set commits the given value or map as the return value of the Action.
+This value will be returned to the stateservice and client after completion
+of the Action.  Subsequent calls to results-set before completion of the
+Action will overwrite the results with the new value(s).
 `
 	return &cmd.Info{
-		Name:    "action-get",
-		Args:    "[<key>[.<key>.<key>...]]",
+		Name:    "results-set",
+		Args:    "",
 		Purpose: "get action parameters",
 		Doc:     doc,
 	}
 }
 
-func (c *ActionGetCommand) SetFlags(f *gnuflag.FlagSet) {
+func (c *ResultsSetCommand) SetFlags(f *gnuflag.FlagSet) {
 	c.out.AddFlags(f, "smart", cmd.DefaultFormatters)
 }
 
-func (c *ActionGetCommand) Init(args []string) error {
+func (c *ResultsSetCommand) Init(args []string) error {
 	if len(args) > 0 {
 		err := cmd.CheckEmpty(args[1:])
 		if err != nil {
@@ -82,7 +83,7 @@ func recurseMapOnKeys(keys []string, params map[string]interface{}) (interface{}
 	return nil, false
 }
 
-func (c *ActionGetCommand) Run(ctx *cmd.Context) error {
+func (c *ResultsSetCommand) Run(ctx *cmd.Context) error {
 	params := c.ctx.ActionParams()
 
 	var answer interface{}
