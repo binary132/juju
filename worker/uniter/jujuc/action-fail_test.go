@@ -12,19 +12,19 @@ import (
 	"github.com/juju/juju/worker/uniter/jujuc"
 )
 
-type ActionSetSuite struct {
+type ActionFailSuite struct {
 	ContextSuite
 }
 
-var _ = gc.Suite(&ActionSetSuite{})
+var _ = gc.Suite(&ActionFailSuite{})
 
-func (s *ActionSetSuite) TestGoodActionSet(c *gc.C) {
-	var actionSetTests = []struct {
-		summary  string
-		commands [][]string
-		results  map[string]interface{}
-		errMsg   string
-		code     int
+func (s *ActionFailSuite) TestActionFail(c *gc.C) {
+	var actionFailTests = []struct {
+		summary     string
+		commands    [][]string
+		failMessage string
+		errMsg      string
+		code        int
 	}{{
 		summary: "bare value(s) are an Init error",
 		commands: [][]string{
@@ -130,50 +130,44 @@ func (s *ActionSetSuite) TestGoodActionSet(c *gc.C) {
 		},
 	}}
 
-	for i, t := range actionSetTests {
+	for i, t := range actionFailTests {
 		c.Logf("test %d: %s", i, t.summary)
 		hctx := s.GetHookContext(c, -1, "")
-		com, err := jujuc.NewCommand(hctx, "action-set")
+		com, err := jujuc.NewCommand(hctx, "action-fail")
 		c.Assert(err, gc.IsNil)
 		ctx := testing.Context(c)
 		for j, command := range t.commands {
 			c.Logf("  command %d: %#v", j, command)
 			code := cmd.Main(com, ctx, command)
-			_, failed := hctx.ActionResults()
-			if t.code == 0 {
-				c.Check(code, gc.Equals, 0)
-				c.Check(bufferString(ctx.Stderr), gc.Equals, "")
-				c.Check(failed, gc.Equals, false)
-				if j == len(t.commands)-1 {
-					results, _ := hctx.ActionResults()
-					c.Check(results, jc.DeepEquals, t.results)
-				}
-			} else {
-				c.Check(bufferString(ctx.Stderr), gc.Equals, t.errMsg)
-				c.Check(code, gc.Equals, t.code)
-				c.Check(failed, gc.Equals, false)
+			c.Check(code, gc.Equals, t.code)
+			results := hctx.ActionResults()
+			c.Check(bufferString(ctx.Stderr), gc.Equals, t.errMsg)
+			c.Check(results.errMsg, gc.Equals, t.failMessage)
+			if j == len(t.commands)-1 {
+				results := hctx.ActionResults()
+				c.Check(results, jc.DeepEquals, t.results)
 			}
 		}
 	}
 }
 
-func (s *ActionSetSuite) TestHelp(c *gc.C) {
+func (s *ActionFailSuite) TestHelp(c *gc.C) {
 	hctx := s.GetHookContext(c, -1, "")
-	com, err := jujuc.NewCommand(hctx, "action-set")
+	com, err := jujuc.NewCommand(hctx, "action-fail")
 	c.Assert(err, gc.IsNil)
 	ctx := testing.Context(c)
 	code := cmd.Main(com, ctx, []string{"--help"})
 	c.Assert(code, gc.Equals, 0)
-	c.Assert(bufferString(ctx.Stdout), gc.Equals, `usage: action-set <key>=<value> [<key>.<key>....=<value> ...]
+	c.Assert(bufferString(ctx.Stdout), gc.Equals, `usage: action-fail <key>=<value> [<key>.<key>....=<value> ...]
 purpose: set action results
 
-action-set adds the given values to the results map of the Action.  This map
+action-fail adds the given values to the results map of the Action.  This map
 is returned to the user after the completion of the Action.
 
 Example usage:
- action-set outfile.size=10G
- action-set foo.bar.baz=2 foo.bar.zab=3
- action-set foo.bar.baz=4
+ action-fail outfile.size=10G
+ action-fail foo.bar.baz=2 foo.bar.zab=3
+ action-fail foo.bar.baz=4
 
  will yield:
 
