@@ -27,13 +27,12 @@ func NewActionFailCommand(ctx Context) cmd.Command {
 func (c *ActionFailCommand) Info() *cmd.Info {
 	doc := `
 action-fail sets the action's fail state with a given error message.  Using
-the --clear option will clear a failure.  Using action-fail without a failure
-message, and without --clear, will set a default failure message indicating
-a problem with the action.
+action-fail without a failure message, and without --clear, will set a
+default failure message indicating a problem with the action.
 `
 	return &cmd.Info{
 		Name:    "action-fail",
-		Args:    "([\"<failure message>\"] | --clear)",
+		Args:    "[\"<failure message>\"]",
 		Purpose: "set action fail status with message",
 		Doc:     doc,
 	}
