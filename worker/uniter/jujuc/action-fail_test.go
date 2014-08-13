@@ -28,6 +28,15 @@ func (s *ActionFailSuite) TestActionFail(c *gc.C) {
 		summary:     "no parameters sets a default message",
 		command:     []string{},
 		failMessage: "action failed without reason given, check action for errors",
+	}, {
+		summary:     "a message sent is set as the failure reason",
+		command:     []string{"a failure message"},
+		failMessage: "a failure message",
+	}, {
+		summary: "extra arguments are an error",
+		command: []string{"a failure message", "something else"},
+		errMsg:  "error: unrecognized args: [\"something else\"]\n",
+		code:    2,
 	}}
 
 	for i, t := range actionFailTests {
@@ -40,7 +49,11 @@ func (s *ActionFailSuite) TestActionFail(c *gc.C) {
 		c.Check(code, gc.Equals, t.code)
 		_, actionErr := hctx.ActionResults()
 		c.Check(bufferString(ctx.Stderr), gc.Equals, t.errMsg)
-		c.Check(actionErr, gc.ErrorMatches, t.failMessage)
+		if t.failMessage == "" {
+			c.Check(actionErr, gc.IsNil)
+		} else {
+			c.Check(actionErr, gc.ErrorMatches, t.failMessage)
+		}
 	}
 }
 
@@ -51,12 +64,8 @@ func (s *ActionFailSuite) TestHelp(c *gc.C) {
 	ctx := testing.Context(c)
 	code := cmd.Main(com, ctx, []string{"--help"})
 	c.Assert(code, gc.Equals, 0)
-	c.Assert(bufferString(ctx.Stdout), gc.Equals, `usage: action-fail [options] ["<failure message>"]
+	c.Assert(bufferString(ctx.Stdout), gc.Equals, `usage: action-fail ["<failure message>"]
 purpose: set action fail status with message
-
-options:
---clear  (= false)
-    clear an existing fail state
 
 action-fail sets the action's fail state with a given error message.  Using
 action-fail without a failure message, and without --clear, will set a

@@ -38,37 +38,23 @@ default failure message indicating a problem with the action.
 	}
 }
 
-// SetFlags handles option flags.  --clear will reset the fail state.
+// SetFlags handles any option flags, but there are none.
 func (c *ActionFailCommand) SetFlags(f *gnuflag.FlagSet) {
-	f.BoolVar(&c.clear, "clear", false, "clear an existing fail state")
 }
 
 // Init sets the fail message and checks for malformed invocations.
 func (c *ActionFailCommand) Init(args []string) error {
-	if c.clear {
-		return cmd.CheckEmpty(args)
-	}
-
-	switch len(args) {
-	case 0:
+	if len(args) == 0 {
 		c.failMessage = "action failed without reason given, check action for errors"
-	case 1:
-		c.failMessage = args[0]
-	default:
-		return cmd.CheckEmpty(args[1:])
+		return nil
 	}
-
-	return nil
+	c.failMessage = args[0]
+	return cmd.CheckEmpty(args[1:])
 }
 
 // Run sets the Action's fail state, or clears it if --clear was passed.
 func (c *ActionFailCommand) Run(ctx *cmd.Context) error {
 	err := fmt.Errorf(c.failMessage)
-
-	if c.clear {
-		err = nil
-	}
-
 	c.ctx.ActionSetFailed(err)
 	return nil
 }
