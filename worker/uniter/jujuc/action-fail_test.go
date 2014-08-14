@@ -41,14 +41,17 @@ func (s *ActionFailSuite) TestActionFail(c *gc.C) {
 
 	for i, t := range actionFailTests {
 		c.Logf("test %d: %s", i, t.summary)
-		hctx := &Context{}
+		hctx := &Context{
+			actionResults: &jujuc.ActionResults{},
+		}
 		com, err := jujuc.NewCommand(hctx, "action-fail")
 		c.Assert(err, gc.IsNil)
 		ctx := testing.Context(c)
 		code := cmd.Main(com, ctx, t.command)
 		c.Check(code, gc.Equals, t.code)
-		_, actionErr := hctx.ActionResults()
+		result := hctx.ActionResults()
 		c.Check(bufferString(ctx.Stderr), gc.Equals, t.errMsg)
+		actionErr := result.Err
 		if t.failMessage == "" {
 			c.Check(actionErr, gc.IsNil)
 		} else {
