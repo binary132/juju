@@ -14,7 +14,6 @@ import (
 type ActionFailCommand struct {
 	cmd.CommandBase
 	ctx         Context
-	clear       bool
 	failMessage string
 }
 
@@ -27,8 +26,8 @@ func NewActionFailCommand(ctx Context) cmd.Command {
 func (c *ActionFailCommand) Info() *cmd.Info {
 	doc := `
 action-fail sets the action's fail state with a given error message.  Using
-action-fail without a failure message, and without --clear, will set a
-default failure message indicating a problem with the action.
+action-fail without a failure message will set a default failure message
+indicating a problem with the action.
 `
 	return &cmd.Info{
 		Name:    "action-fail",
@@ -52,7 +51,7 @@ func (c *ActionFailCommand) Init(args []string) error {
 	return cmd.CheckEmpty(args[1:])
 }
 
-// Run sets the Action's fail state, or clears it if --clear was passed.
+// Run sets the Action's fail state.
 func (c *ActionFailCommand) Run(ctx *cmd.Context) error {
 	err := fmt.Errorf(c.failMessage)
 	c.ctx.ActionSetFailed(err)

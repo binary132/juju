@@ -80,6 +80,7 @@ func setSettings(c *gc.C, ru *state.RelationUnit, settings map[string]interface{
 
 type Context struct {
 	actionParams map[string]interface{}
+	actionErr    error
 	ports        set.Strings
 	relid        int
 	remote       string
@@ -120,6 +121,10 @@ func (c *Context) ConfigSettings() (charm.Settings, error) {
 
 func (c *Context) ActionParams() map[string]interface{} {
 	return c.actionParams
+}
+
+func (c *Context) ActionSetFailed(err error) {
+	c.actionErr = err
 }
 
 func (c *Context) HookRelation() (jujuc.ContextRelation, bool) {
