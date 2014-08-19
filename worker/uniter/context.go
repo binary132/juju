@@ -140,6 +140,7 @@ func NewHookContext(
 
 	ctx.actionResults = &actionResults{
 		Results: map[string]interface{}{},
+		Status:  actionStatusInit,
 	}
 	return ctx, nil
 }
@@ -183,16 +184,10 @@ func (ctx *HookContext) ConfigSettings() (charm.Settings, error) {
 	return result, nil
 }
 
-// ActionParams is the map of parameters delivered as arguments to an action.
-// Note that since this is a map, it is a reference to the actual data and
-// should not be altered.
 func (ctx *HookContext) ActionParams() map[string]interface{} {
 	return ctx.actionParams
 }
 
-// UpdateActionResults inserts new values for use with action-set and
-// action-fail.  The results struct will be delivered to the state server
-// upon completion of the Action.
 func (ctx *HookContext) UpdateActionResults(keys []string, value string) {
 	addValueToMap(keys, value, ctx.actionResults.Results)
 }
@@ -621,8 +616,19 @@ func (ctx *ContextRelation) ReadSettings(unit string) (settings params.RelationS
 // actionResults contains the results of an action, and any response message.
 type actionResults struct {
 	Message string
+	Status  actionStatus
 	Results map[string]interface{}
 }
+
+// actionStatus defines the state of a completed Action.
+type actionStatus string
+
+// actionStatus messages define the possible states of a completed Action.
+const (
+	actionStatusInit     = "init"
+	actionStatusComplete = "completed"
+	actionStatusFailed   = "failed"
+)
 
 // AddValueToMap adds the given value to the map on which the method is run.
 // This allows us to merge maps such as {foo: {bar: baz}} and {foo: {baz: faz}}
@@ -651,12 +657,13 @@ func addValueToMap(keys []string, value string, inMap map[string]interface{}) {
 				next[keys[i]] = m
 				next = m
 			}
-		} else {
-			// Otherwise, it wasn't present, so make it and step
-			// into.
-			m := map[string]interface{}{}
-			next[keys[i]] = m
-			next = m
+			continue
 		}
+
+		// Otherwise, it wasn't present, so make it and step
+		// into.
+		m := map[string]interface{}{}
+		next[keys[i]] = m
+		next = m
 	}
 }
