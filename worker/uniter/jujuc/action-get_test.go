@@ -238,7 +238,7 @@ func (s *ActionGetSuite) TestActionGet(c *gc.C) {
 }
 
 func (s *ActionGetSuite) TestHelp(c *gc.C) {
-	hctx := s.GetHookContext(c, -1, "")
+	hctx := &Context{}
 	com, err := jujuc.NewCommand(hctx, "action-get")
 	c.Assert(err, gc.IsNil)
 	ctx := testing.Context(c)

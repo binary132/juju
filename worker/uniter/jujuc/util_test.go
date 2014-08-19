@@ -79,12 +79,12 @@ func setSettings(c *gc.C, ru *state.RelationUnit, settings map[string]interface{
 }
 
 type Context struct {
-	actionParams map[string]interface{}
-	actionErr    error
-	ports        set.Strings
-	relid        int
-	remote       string
-	rels         map[int]*ContextRelation
+	actionParams  map[string]interface{}
+	actionMessage string
+	ports         set.Strings
+	relid         int
+	remote        string
+	rels          map[int]*ContextRelation
 }
 
 func (c *Context) UnitName() string {
@@ -123,8 +123,8 @@ func (c *Context) ActionParams() map[string]interface{} {
 	return c.actionParams
 }
 
-func (c *Context) ActionSetFailed(err error) {
-	c.actionErr = err
+func (c *Context) ActionSetFailed(message string) {
+	c.actionMessage = message
 }
 
 func (c *Context) HookRelation() (jujuc.ContextRelation, bool) {

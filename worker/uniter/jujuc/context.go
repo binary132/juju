@@ -41,6 +41,14 @@ type Context interface {
 	// ActionParams returns the map of params passed with an Action.
 	ActionParams() map[string]interface{}
 
+	// UpdateActionResults inserts new values for use with action-set.
+	// The results struct will be delivered to the state server upon
+	// completion of the Action.
+	UpdateActionResults(keys []string, value string)
+
+	// ActionSetFailed sets a failed state and error message for the Action.
+	ActionSetFailed(string)
+
 	// HookRelation returns the ContextRelation associated with the executing
 	// hook if it was found, and whether it was found.
 	HookRelation() (ContextRelation, bool)

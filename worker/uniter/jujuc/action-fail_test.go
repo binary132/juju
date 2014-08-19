@@ -48,16 +48,12 @@ func (s *ActionFailSuite) TestActionFail(c *gc.C) {
 		code := cmd.Main(com, ctx, t.command)
 		c.Check(code, gc.Equals, t.code)
 		c.Check(bufferString(ctx.Stderr), gc.Equals, t.errMsg)
-		if t.failMessage == "" {
-			c.Check(hctx.actionErr, gc.IsNil)
-		} else {
-			c.Check(hctx.actionErr, gc.ErrorMatches, t.failMessage)
-		}
+		c.Check(hctx.actionMessage, gc.Equals, t.failMessage)
 	}
 }
 
 func (s *ActionFailSuite) TestHelp(c *gc.C) {
-	hctx := s.GetHookContext(c, -1, "")
+	hctx := &Context{}
 	com, err := jujuc.NewCommand(hctx, "action-fail")
 	c.Assert(err, gc.IsNil)
 	ctx := testing.Context(c)
@@ -67,8 +63,8 @@ func (s *ActionFailSuite) TestHelp(c *gc.C) {
 purpose: set action fail status with message
 
 action-fail sets the action's fail state with a given error message.  Using
-action-fail without a failure message will set a default failure message
-indicating a problem with the action.
+action-fail without a failure message will set a default message indicating a
+problem with the action.
 `)
 	c.Assert(bufferString(ctx.Stderr), gc.Equals, "")
 }
