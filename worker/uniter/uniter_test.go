@@ -211,6 +211,10 @@ juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 	"snapshot": `
 #!/bin/bash --norc
+action-set outfile.name="snapshot-01.tar" outfile.size="10.3GB"
+action-set outfile.size.magnitude="10.3" outfile.size.units="GB"
+action-set completion.status="yes" completion.time="5m"
+action-set completion="yes"
 juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 	"action-log-fail": `
@@ -218,6 +222,51 @@ juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 juju-log $JUJU_ENV_UUID fail-%s $JUJU_REMOTE_UNIT
 exit 1
 `[1:],
+}
+
+var actionResults = map[string]struct {
+	results map[string]interface{}
+	message string
+	status  string
+	name    string
+}{
+	"snapshot": {
+		results: map[string]interface{}{
+			"outfile": map[string]interface{}{
+				"name": "snapshot-01.tar",
+				"size": map[string]interface{}{
+					"magnitude": "10.3",
+					"units":     "GB",
+				},
+			},
+			"completion": "yes",
+		},
+		status: "complete",
+		name:   "snapshot",
+	},
+	"action-log": {
+		results: map[string]interface{}{},
+		status:  "complete",
+		name:    "action-log",
+	},
+	"snapshot-badparams": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action "snapshot" param validation failed: JSON validation failed: (root).outfile : must be of type string, given 2`,
+		name:    "snapshot",
+	},
+	"snapshot-undefined": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action "snapshot" param validation failed: no spec was defined for action "snapshot"`,
+		name:    "snapshot",
+	},
+	"action-log-missing": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action failed (not implemented on unit "u/0")`,
+		name:    "action-log",
+	},
 }
 
 var actionsYaml = map[string]string{

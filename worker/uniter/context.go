@@ -1,4 +1,4 @@
-// Copyright 2012, 2013 Canonical Ltd.
+// Copyright 2012, 2013, 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 package uniter
@@ -69,7 +69,7 @@ type HookContext struct {
 	actionParams map[string]interface{}
 
 	// actionResults holds the values set by action-set and action-fail.
-	actionResults *actionResults
+	actionResults actionResults
 
 	// uuid is the universally unique identifier of the environment.
 	uuid string
@@ -138,7 +138,7 @@ func NewHookContext(
 		return nil, err
 	}
 
-	ctx.actionResults = &actionResults{
+	ctx.actionResults = actionResults{
 		Results: map[string]interface{}{},
 		Status:  actionStatusInit,
 	}
@@ -188,6 +188,16 @@ func (ctx *HookContext) ActionParams() map[string]interface{} {
 	return ctx.actionParams
 }
 
+// SetActionFailed sets the state of the action to "fail" and sets the results
+// message to the string argument.
+func (ctx *HookContext) SetActionFailed(message string) {
+	ctx.actionResults.Message = message
+	ctx.actionResults.Status = actionStatusFailed
+}
+
+// UpdateActionResults inserts new values for use with action-set and
+// action-fail.  The results struct will be delivered to the state server
+// upon completion of the Action.
 func (ctx *HookContext) UpdateActionResults(keys []string, value string) {
 	addValueToMap(keys, value, ctx.actionResults.Results)
 }
@@ -616,18 +626,14 @@ func (ctx *ContextRelation) ReadSettings(unit string) (settings params.RelationS
 // actionResults contains the results of an action, and any response message.
 type actionResults struct {
 	Message string
-	Status  actionStatus
+	Status  string
 	Results map[string]interface{}
 }
 
-// actionStatus defines the state of a completed Action.
-type actionStatus string
-
 // actionStatus messages define the possible states of a completed Action.
 const (
-	actionStatusInit     = "init"
-	actionStatusComplete = "completed"
-	actionStatusFailed   = "failed"
+	actionStatusInit   = "init"
+	actionStatusFailed = "fail"
 )
 
 // AddValueToMap adds the given value to the map on which the method is run.
