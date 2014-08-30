@@ -216,11 +216,14 @@ juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 	"action-log-fail": `
 #!/bin/bash --norc
 action-fail "I'm afraid I can't let you do that, Dave."
+#action-set foo="still works"
 juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 	"action-log-fail-error": `
 #!/bin/bash --norc
 action-fail too many arguments
+action-set foo="still works"
+#action-fail "A real message"
 juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 }
@@ -252,14 +255,18 @@ var actionResults = map[string]struct {
 	},
 	"action-log-fail": {
 		results: map[string]interface{}{},
+		//	"foo": "still works",
+		//},
 		message: "I'm afraid I can't let you do that, Dave.",
 		status:  "fail",
 		name:    "action-log-fail",
 	},
 	"action-log-fail-error": {
-		results: map[string]interface{}{},
-		status:  "complete",
-		name:    "action-log-fail-error",
+		results: map[string]interface{}{
+			"foo": "still works",
+		},
+		status: "complete",
+		name:   "action-log-fail-error",
 	},
 	"snapshot-badparams": {
 		results: map[string]interface{}{},

@@ -769,38 +769,47 @@ func (s *HookContextSuite) TestActionSetFailed(c *gc.C) {
 		code           int
 		expectedStatus string
 		expectedMsg    string
-		command        []string
+		commands       [][]string
 	}{{
 		description:    "An empty fail message creates a default value",
-		command:        []string{},
+		commands:       [][]string{[]string{}},
 		expectedStatus: "fail",
 		expectedMsg:    "action failed without reason given, check action for errors",
 	}, {
 		description:    "A single fail message sets the action state",
-		command:        []string{"Oops"},
+		commands:       [][]string{[]string{"Oops"}},
 		expectedStatus: "fail",
 		expectedMsg:    "Oops",
 	}, {
 		description:    "Too many arguments is a problem",
-		command:        []string{"Something", "is", "wrong"},
+		commands:       [][]string{[]string{"Something", "is", "wrong"}},
 		errMsg:         `error: unrecognized args: ["is" "wrong"]` + "\n",
 		expectedStatus: "init",
 		code:           2,
+	}, {
+		description:    "Calling fail twice only uses the first invocation",
+		commands:       [][]string{[]string{"message"}, []string{"discarded"}},
+		expectedStatus: "fail",
+		expectedMsg:    "message",
 	}}
 
 	for i, t := range tests {
-		c.Logf("action-fail test %d: %#v\n  %#v", i, t.description, t.command)
+		c.Logf("action-fail test %d: %#v\n  %#v", i, t.description, t.commands)
 		uuid, err := utils.NewUUID()
 		c.Assert(err, gc.IsNil)
 		hctx := s.getHookContext(c, uuid.String(), -1, "", noProxies)
 		com, err := jujuc.NewCommand(hctx, "action-fail")
 		c.Assert(err, gc.IsNil)
 		ctx := contexttesting.Context(c)
-		code := cmd.Main(com, ctx, t.command)
-		c.Check(code, gc.Equals, t.code)
-		c.Check(ctx.Stderr.(*bytes.Buffer).String(), gc.Equals, t.errMsg)
-		c.Check(hctx.ActionStatus(), gc.Equals, t.expectedStatus)
-		c.Check(hctx.ActionMessage(), gc.Equals, t.expectedMsg)
+		for j, command := range t.commands {
+			code := cmd.Main(com, ctx, command)
+			if j == len(t.commands)-1 {
+				c.Check(code, gc.Equals, t.code)
+				c.Check(ctx.Stderr.(*bytes.Buffer).String(), gc.Equals, t.errMsg)
+				c.Check(hctx.ActionStatus(), gc.Equals, t.expectedStatus)
+				c.Check(hctx.ActionMessage(), gc.Equals, t.expectedMsg)
+			}
+		}
 	}
 }
 
