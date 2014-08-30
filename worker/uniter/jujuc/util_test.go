@@ -124,6 +124,10 @@ func (c *Context) ActionParams() map[string]interface{} {
 	return c.actionParams
 }
 
+func (c *Context) UpdateActionResults(keys []string, value string) {
+	panic("Implement me in the test")
+}
+
 func (c *Context) SetActionFailed(message string) {
 	c.actionMessage = message
 	c.actionStatus = "fail"
