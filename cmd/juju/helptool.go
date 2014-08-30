@@ -40,7 +40,7 @@ func (dummyHookContext) ActionParams() map[string]interface{} {
 }
 func (dummyHookContext) UpdateActionResults(keys []string, value string) {
 }
-func (dummyHookContext) ActionSetFailed(message string) {
+func (dummyHookContext) SetActionFailed(message string) {
 }
 func (dummyHookContext) HookRelation() (jujuc.ContextRelation, bool) {
 	return nil, false

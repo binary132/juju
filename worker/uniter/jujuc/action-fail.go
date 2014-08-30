@@ -51,6 +51,6 @@ func (c *ActionFailCommand) Init(args []string) error {
 
 // Run sets the Action's fail state.
 func (c *ActionFailCommand) Run(ctx *cmd.Context) error {
-	c.ctx.ActionSetFailed(c.failMessage)
+	c.ctx.SetActionFailed(c.failMessage)
 	return nil
 }
