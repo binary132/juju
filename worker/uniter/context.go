@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/juju/errors"
 	"github.com/juju/loggo"
 	utilexec "github.com/juju/utils/exec"
 	"github.com/juju/utils/proxy"
@@ -306,7 +307,41 @@ func (ctx *HookContext) finalizeContext(process string, err error) error {
 		}
 		rctx.ClearCache()
 	}
-	return err
+	// If it was not an Action, just short-circuit to return err.
+	if ctx.actionTag == nil {
+		return err
+	}
+
+	// If the state handle was nil, we cannot call home and this will panic.
+	if ctx.state == nil {
+		return errors.New("action cannot call home, state handle undefined")
+	}
+
+	// Otherwise, if there was an error, *and* it was an action...
+	if err != nil {
+		failMessage := "Unexpected error: " + err.Error()
+		// If it was a missing hook error, the action implementation
+		// is missing, and that's a problem with the unit.
+		// Since this is a known error case, the user only needs to know
+		// that the action failed because it was missing.
+		if IsMissingHookError(err) {
+			failMessage = fmt.Sprintf("action failed (not implemented on unit %q)", ctx.UnitName())
+			err = errors.Annotatef(err, failMessage)
+		}
+
+		callError := ctx.state.ActionFail(*ctx.actionTag, failMessage)
+		if callError != nil {
+			// Oh dear.  Wrap the errors.  Best we can do.
+			err = errors.Wrap(err, callError)
+		}
+
+		return err
+	}
+
+	if ctx.actionResults.Status == actionStatusFailed {
+		return ctx.state.ActionFail(*ctx.actionTag, ctx.actionResults.Message)
+	}
+	return ctx.state.ActionComplete(*ctx.actionTag, ctx.actionResults.Results)
 }
 
 // RunCommands executes the commands in an environment which allows it to to

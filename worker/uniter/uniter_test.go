@@ -215,9 +215,61 @@ juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 	"action-log-fail": `
 #!/bin/bash --norc
+action-fail poop
 juju-log $JUJU_ENV_UUID fail-%s $JUJU_REMOTE_UNIT
 exit 1
 `[1:],
+}
+
+var actionResults = map[string]struct {
+	results map[string]interface{}
+	message string
+	status  string
+	name    string
+}{
+	"snapshot": {
+		results: map[string]interface{}{
+			"outfile": map[string]interface{}{
+				"name": "snapshot-01.tar",
+				"size": map[string]interface{}{
+					"magnitude": "10.3",
+					"units":     "GB",
+				},
+			},
+			"completion": "yes",
+		},
+		status: "complete",
+		name:   "snapshot",
+	},
+	"action-log": {
+		results: map[string]interface{}{},
+		status:  "complete",
+		name:    "action-log",
+	},
+	"action-log-fail": {
+		results: map[string]interface{}{},
+		message: `I'm afraid I can't let you do that, Dave.`,
+		status:  "fail",
+		name:    "action-log-fail",
+	},
+	"snapshot-badparams": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action "snapshot" param validation failed: JSON validation failed: (root).outfile : must be of type string, given 2`,
+		name:    "snapshot",
+	},
+	"snapshot-undefined": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action "snapshot" param validation failed: no spec was defined for action "snapshot"`,
+		name:    "snapshot",
+	},
+	"action-log-missing": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action failed (not implemented on unit "u/0")`,
+		name:    "action-log",
+	},
 }
 
 var actionsYaml = map[string]string{
@@ -1318,6 +1370,25 @@ var actionEventTests = []uniterTest{
 		verifyCharm{},
 		addAction{"action-log", nil},
 		waitHooks{"action-log"},
+	), ut(
+		"action-fail causes the action to fail with a message",
+		createCharm{
+			customize: func(c *gc.C, ctx *context, path string) {
+				ctx.writeAction(c, path, "action-log-fail")
+				ctx.writeActionsYaml(c, path, []string{"action-log-fail"})
+			},
+		},
+		serveCharm{},
+		ensureStateWorker{},
+		createServiceAndUnit{},
+		startUniter{},
+		waitAddresses{},
+		waitUnit{status: params.StatusStarted},
+		waitHooks{"install", "config-changed", "start"},
+		verifyCharm{},
+		addAction{"action-log-fail", nil},
+		waitHooks{"fail-action-log-fail"},
+		verifyActionResults{"action-log-fail"},
 	), ut(
 		"actions with correct params passed are not an error",
 		createCharm{

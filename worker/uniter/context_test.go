@@ -773,12 +773,12 @@ func (s *HookContextSuite) TestActionSetFailed(c *gc.C) {
 	}{{
 		description:    "An empty fail message creates a default value",
 		command:        []string{},
-		expectedStatus: "failed",
+		expectedStatus: "fail",
 		expectedMsg:    "action failed without reason given, check action for errors",
 	}, {
 		description:    "A single fail message sets the action state",
 		command:        []string{"Oops"},
-		expectedStatus: "failed",
+		expectedStatus: "fail",
 		expectedMsg:    "Oops",
 	}, {
 		description:    "Too many arguments is a problem",
@@ -801,48 +801,6 @@ func (s *HookContextSuite) TestActionSetFailed(c *gc.C) {
 		c.Check(ctx.Stderr.(*bytes.Buffer).String(), gc.Equals, t.errMsg)
 		c.Check(hctx.ActionStatus(), gc.Equals, t.expectedStatus)
 		c.Check(hctx.ActionMessage(), gc.Equals, t.expectedMsg)
-	}
-}
-
-// TestUpdateActionResults demonstrates that UpdateActionResults functions
-// as expected; the further tests of action-set are in jujuc/action-set_test.
-func (s *HookContextSuite) TestUpdateActionResults(c *gc.C) {
-	tests := []struct {
-		expected map[string]interface{}
-		errMsg   string
-		code     int
-		command  []string
-	}{{
-		command: []string{"foo.bar=baz", "foo.baz=bar",
-			"bar.foo=foo2", "bar=5"},
-		expected: map[string]interface{}{
-			"foo": map[string]interface{}{
-				"bar": "baz",
-				"baz": "bar",
-			},
-			"bar": "5",
-		},
-	}, {
-		command:  []string{"foo-=5"},
-		expected: map[string]interface{}{},
-		errMsg: "error: key \"foo-\" must start and end with " +
-			"lowercase alphanumeric, and contain only " +
-			"lowercase alphanumeric and hyphens\n",
-		code: 2,
-	}}
-
-	for i, t := range tests {
-		c.Logf("action-set test %d: %#v", i, t.command)
-		uuid, err := utils.NewUUID()
-		c.Assert(err, gc.IsNil)
-		hctx := s.getHookContext(c, uuid.String(), -1, "", noProxies)
-		com, err := jujuc.NewCommand(hctx, "action-set")
-		c.Assert(err, gc.IsNil)
-		ctx := contexttesting.Context(c)
-		code := cmd.Main(com, ctx, t.command)
-		c.Check(code, gc.Equals, t.code)
-		c.Check(ctx.Stderr.(*bytes.Buffer).String(), gc.Equals, t.errMsg)
-		c.Check(hctx.ActionResultsMap(), jc.DeepEquals, t.expected)
 	}
 }
 
