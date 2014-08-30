@@ -1,4 +1,4 @@
-// Copyright 2012, 2013 Canonical Ltd.
+// Copyright 2012, 2013, 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 package uniter
@@ -15,7 +15,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/juju/errors"
 	"github.com/juju/loggo"
+	"github.com/juju/names"
 	utilexec "github.com/juju/utils/exec"
 	"github.com/juju/utils/proxy"
 	"gopkg.in/juju/charm.v3"
@@ -38,8 +40,6 @@ type missingHookError struct {
 	hookName string
 }
 
-type actionParams map[string]interface{}
-
 func (e *missingHookError) Error() string {
 	return e.hookName + " does not exist"
 }
@@ -52,6 +52,13 @@ func IsMissingHookError(err error) bool {
 // HookContext is the implementation of jujuc.Context.
 type HookContext struct {
 	unit *uniter.Unit
+
+	// state is the handle to the uniter State so that HookContext can make
+	// API calls on the stateservice.
+	// NOTE: We would like to be rid of the fake-remote-Unit and switch
+	// over fully to API calls on State.  This adds that ability, but we're
+	// not fully there yet.
+	state *uniter.State
 
 	// privateAddress is the cached value of the unit's private
 	// address.
@@ -67,8 +74,9 @@ type HookContext struct {
 	// id identifies the context.
 	id string
 
-	// actionParams holds the set of arguments passed with the action.
-	actionParams map[string]interface{}
+	// actionData contains the values relevant to the run of an Action:
+	// its tag, its parameters, and its results.
+	actionData *actionData
 
 	// uuid is the universally unique identifier of the environment.
 	uuid string
@@ -102,6 +110,7 @@ type HookContext struct {
 
 func NewHookContext(
 	unit *uniter.Unit,
+	state *uniter.State,
 	id,
 	uuid,
 	envName string,
@@ -111,10 +120,11 @@ func NewHookContext(
 	apiAddrs []string,
 	serviceOwner string,
 	proxySettings proxy.Settings,
-	actionParams map[string]interface{},
+	actionData *actionData,
 ) (*HookContext, error) {
 	ctx := &HookContext{
 		unit:           unit,
+		state:          state,
 		id:             id,
 		uuid:           uuid,
 		envName:        envName,
@@ -124,7 +134,7 @@ func NewHookContext(
 		apiAddrs:       apiAddrs,
 		serviceOwner:   serviceOwner,
 		proxySettings:  proxySettings,
-		actionParams:   actionParams,
+		actionData:     actionData,
 	}
 	// Get and cache the addresses.
 	var err error
@@ -136,6 +146,7 @@ func NewHookContext(
 	if err != nil && !params.IsCodeNoAddressSet(err) {
 		return nil, err
 	}
+
 	return ctx, nil
 }
 
@@ -179,7 +190,31 @@ func (ctx *HookContext) ConfigSettings() (charm.Settings, error) {
 }
 
 func (ctx *HookContext) ActionParams() map[string]interface{} {
-	return ctx.actionParams
+	if ctx.actionData != nil {
+		return ctx.actionData.ActionParams
+	}
+	// if ActionData was nil, it wasn't an Action, so this is meaningless.
+	return map[string]interface{}{}
+}
+
+// SetActionFailed sets the state of the action to "fail" and sets the results
+// message to the string argument.  This only causes any change the first time.
+func (ctx *HookContext) SetActionFailed(message string) {
+	// if ActionData was nil, it wasn't an Action, so this is meaningless.
+	if ctx.actionData != nil {
+		ctx.actionData.ResultsMessage = message
+		ctx.actionData.ActionFailed = true
+	}
+}
+
+// UpdateActionResults inserts new values for use with action-set and
+// action-fail.  The results struct will be delivered to the state server
+// upon completion of the Action.
+func (ctx *HookContext) UpdateActionResults(keys []string, value string) {
+	// if ActionData was nil, it wasn't an Action, so this is meaningless.
+	if ctx.actionData != nil {
+		addValueToMap(keys, value, ctx.actionData.ResultsMap)
+	}
 }
 
 func (ctx *HookContext) HookRelation() (jujuc.ContextRelation, bool) {
@@ -290,21 +325,49 @@ func (ctx *HookContext) hookVars(charmDir, toolsDir, socketPath string) []string
 }
 
 func (ctx *HookContext) finalizeContext(process string, err error) error {
-	writeChanges := err == nil
 	for id, rctx := range ctx.relations {
-		if writeChanges {
-			if e := rctx.WriteSettings(); e != nil {
-				e = fmt.Errorf(
-					"could not write settings from %q to relation %d: %v",
-					process, id, e,
+		if err == nil {
+			if err = rctx.WriteSettings(); err != nil {
+				err = errors.Annotatef(err,
+					"could not write settings from %q to relation %d",
+					process, id,
 				)
-				logger.Errorf("%v", e)
-				if err == nil {
-					err = e
-				}
+				logger.Errorf("%v", err)
 			}
 		}
 		rctx.ClearCache()
+	}
+	// If it was not an Action, just short-circuit to return err.
+	if ctx.actionData == nil {
+		return err
+	}
+
+	// Otherwise, set up for handling ActionFinish.
+	message := ctx.actionData.ResultsMessage
+	results := ctx.actionData.ResultsMap
+	tag := ctx.actionData.ActionTag
+	status := params.ActionCompleted
+	if ctx.actionFailed() {
+		status = params.ActionFailed
+	}
+
+	if err != nil {
+		message = err.Error()
+		// If it was a missing hook error, the action implementation
+		// is missing, and that's a problem with the unit.
+		if IsMissingHookError(err) {
+			message = fmt.Sprintf("action failed (not implemented on unit %q)", ctx.UnitName())
+		}
+		status = params.ActionFailed
+	}
+
+	callErr := ctx.state.ActionFinish(tag, status, results, message)
+	if callErr != nil {
+		if err != nil {
+			err = errors.Wrap(err, callErr)
+		} else {
+			err = callErr
+		}
 	}
 	return err
 }
@@ -344,7 +407,9 @@ func (ctx *HookContext) runCharmHookWithLocation(hookName, charmLocation, charmD
 	if session, _ := debugctx.FindSession(); session != nil && session.MatchHook(hookName) {
 		logger.Infof("executing %s via debug-hooks", hookName)
 		err = session.RunHook(hookName, charmDir, env)
-	} else {
+	} else if !ctx.actionFailed() {
+		// If the action has already failed before it is run, there's
+		// a bigger problem, probably validation failure.
 		err = ctx.runCharmHook(hookName, charmDir, env, charmLocation)
 	}
 	return ctx.finalizeContext(hookName, err)
@@ -601,4 +666,77 @@ func (ctx *ContextRelation) ReadSettings(unit string) (settings params.RelationS
 		ctx.cache[unit] = settings
 	}
 	return settings, nil
+}
+
+// actionData contains the tag, parameters, and results of an Action.
+type actionData struct {
+	ActionTag      names.ActionTag
+	ActionParams   map[string]interface{}
+	ActionFailed   bool
+	ResultsMessage string
+	ResultsMap     map[string]interface{}
+}
+
+// actionStatus messages define the possible states of a completed Action.
+const (
+	actionStatusInit   = "init"
+	actionStatusFailed = "fail"
+)
+
+// newActionData builds a suitable actionData struct with no nil members.
+// this should only be called in the event that an Action hook is being requested.
+func newActionData(tag *names.ActionTag, params map[string]interface{}) *actionData {
+	return &actionData{
+		ActionTag:    *tag,
+		ActionParams: params,
+		ResultsMap:   map[string]interface{}{},
+	}
+}
+
+// actionFailed resolves the status of an Action without forcing the user to
+// dive into the actionData state.  If the hook wasn't an Action, then it
+// cannot be a failed Action.
+func (ctx *HookContext) actionFailed() bool {
+	if ctx.actionData != nil {
+		return ctx.actionData.ActionFailed
+	}
+	return false
+}
+
+// AddValueToMap adds the given value to the map on which the method is run.
+// This allows us to merge maps such as {foo: {bar: baz}} and {foo: {baz: faz}}
+// into {foo: {bar: baz, baz: faz}}.
+func addValueToMap(keys []string, value string, inMap map[string]interface{}) {
+	next := inMap
+
+	for i := range keys {
+		// if we are on last key set the value.
+		// shouldn't be a problem.  overwrites existing vals.
+		if i == len(keys)-1 {
+			next[keys[i]] = value
+			break
+		}
+
+		if iface, ok := next[keys[i]]; ok {
+			switch typed := iface.(type) {
+			case map[string]interface{}:
+				// If we already had a map inside, keep
+				// stepping through.
+				next = typed
+			default:
+				// If we didn't, then overwrite value
+				// with a map and iterate with that.
+				m := map[string]interface{}{}
+				next[keys[i]] = m
+				next = m
+			}
+			continue
+		}
+
+		// Otherwise, it wasn't present, so make it and step
+		// into.
+		m := map[string]interface{}{}
+		next[keys[i]] = m
+		next = m
+	}
 }

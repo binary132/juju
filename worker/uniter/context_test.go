@@ -1,9 +1,10 @@
-// Copyright 2012, 2013 Canonical Ltd.
+// Copyright 2012, 2013, 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 package uniter_test
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/juju/cmd"
 	"github.com/juju/names"
 	envtesting "github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
@@ -26,6 +28,7 @@ import (
 	"github.com/juju/juju/juju/testing"
 	"github.com/juju/juju/network"
 	"github.com/juju/juju/state"
+	contexttesting "github.com/juju/juju/testing"
 	"github.com/juju/juju/version"
 	"github.com/juju/juju/worker/uniter"
 	"github.com/juju/juju/worker/uniter/jujuc"
@@ -751,11 +754,111 @@ func (s *HookContextSuite) getHookContext(c *gc.C, uuid string, relid int,
 		_, found := s.relctxs[relid]
 		c.Assert(found, jc.IsTrue)
 	}
-	context, err := uniter.NewHookContext(s.apiUnit, "TestCtx", uuid,
+	context, err := uniter.NewHookContext(s.apiUnit, nil, "TestCtx", uuid,
 		"test-env-name", relid, remote, s.relctxs, apiAddrs, "test-owner",
-		proxies, map[string]interface{}(nil))
+		proxies, nil)
 	c.Assert(err, gc.IsNil)
 	return context
+}
+
+// TestSetActionFailed verifies that SetActionFailed causes the actionResults
+// map to receive the error message.
+func (s *HookContextSuite) TestSetActionFailed(c *gc.C) {
+	tests := []struct {
+		description  string
+		errMsg       string
+		code         int
+		expectedFail bool
+		expectedMsg  string
+		commands     [][]string
+	}{{
+		description:  "An empty fail message creates a default value",
+		commands:     [][]string{[]string{}},
+		expectedFail: true,
+		expectedMsg:  "action failed without reason given, check action for errors",
+	}, {
+		description:  "A single fail message sets the action state",
+		commands:     [][]string{[]string{"Oops"}},
+		expectedFail: true,
+		expectedMsg:  "Oops",
+	}, {
+		description: "Too many arguments is a problem, but not a failure",
+		commands:    [][]string{[]string{"Something", "is", "wrong"}},
+		errMsg:      `error: unrecognized args: ["is" "wrong"]` + "\n",
+		code:        2,
+	}, {
+		description: "Calling fail multiple times only uses the last invocation",
+		commands: [][]string{
+			[]string{"message"},
+			[]string{"discarded"},
+			[]string{"oops"},
+		},
+		expectedFail: true,
+		expectedMsg:  "oops",
+	}}
+
+	for i, t := range tests {
+		c.Logf("action-fail test %d: %#v\n  %#v", i, t.description, t.commands)
+		uuid, err := utils.NewUUID()
+		c.Assert(err, gc.IsNil)
+		hctx := s.getHookContext(c, uuid.String(), -1, "", noProxies)
+		hctx.SetActionData(names.ActionTag{}, map[string]interface{}(nil))
+		com, err := jujuc.NewCommand(hctx, "action-fail")
+		c.Assert(err, gc.IsNil)
+		ctx := contexttesting.Context(c)
+		for j, command := range t.commands {
+			code := cmd.Main(com, ctx, command)
+			if j == len(t.commands)-1 {
+				c.Check(code, gc.Equals, t.code)
+				c.Check(ctx.Stderr.(*bytes.Buffer).String(), gc.Equals, t.errMsg)
+				c.Check(hctx.ActionFailed(), gc.Equals, t.expectedFail)
+				c.Check(hctx.ActionMessage(), gc.Equals, t.expectedMsg)
+			}
+		}
+	}
+}
+
+// TestUpdateActionResults demonstrates that UpdateActionResults functions
+// as expected; the further tests of action-set are in jujuc/action-set_test.
+func (s *HookContextSuite) TestUpdateActionResults(c *gc.C) {
+	tests := []struct {
+		expected map[string]interface{}
+		errMsg   string
+		code     int
+		command  []string
+	}{{
+		command: []string{"foo.bar=baz", "foo.baz=bar",
+			"bar.foo=foo2", "bar=5"},
+		expected: map[string]interface{}{
+			"foo": map[string]interface{}{
+				"bar": "baz",
+				"baz": "bar",
+			},
+			"bar": "5",
+		},
+	}, {
+		command:  []string{"foo-=5"},
+		expected: map[string]interface{}{},
+		errMsg: "error: key \"foo-\" must start and end with " +
+			"lowercase alphanumeric, and contain only " +
+			"lowercase alphanumeric and hyphens\n",
+		code: 2,
+	}}
+
+	for i, t := range tests {
+		c.Logf("action-set test %d: %#v", i, t.command)
+		uuid, err := utils.NewUUID()
+		c.Assert(err, gc.IsNil)
+		hctx := s.getHookContext(c, uuid.String(), -1, "", noProxies)
+		hctx.SetActionData(names.ActionTag{}, map[string]interface{}(nil))
+		com, err := jujuc.NewCommand(hctx, "action-set")
+		c.Assert(err, gc.IsNil)
+		ctx := contexttesting.Context(c)
+		code := cmd.Main(com, ctx, t.command)
+		c.Check(code, gc.Equals, t.code)
+		c.Check(ctx.Stderr.(*bytes.Buffer).String(), gc.Equals, t.errMsg)
+		c.Check(hctx.ActionResultsMap(), jc.DeepEquals, t.expected)
+	}
 }
 
 func convertSettings(settings params.RelationSettings) map[string]interface{} {

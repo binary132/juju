@@ -273,10 +273,10 @@ type ActionResults struct {
 // result of an action. This is an argument, not a result, despite the
 // confusing name.
 type ActionResult struct {
-	ActionTag string                 `json:"actiontag"`
-	Status    string                 `json:"status"`
-	Results   map[string]interface{} `json:"results,omitempty"`
-	Message   string                 `json:"message"`
+	ActionTag string                 `json:"actionresult-tag"`
+	Status    string                 `json:"actionresult-status"`
+	Results   map[string]interface{} `json:"actionresult-results,omitempty"`
+	Message   string                 `json:"actionresult-message"`
 }
 
 // EntityPort holds an entity's tag, a protocol and a port.

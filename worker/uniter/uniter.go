@@ -1,4 +1,4 @@
-// Copyright 2012, 2013 Canonical Ltd.
+// Copyright 2012, 2013, 2014 Canonical Ltd.
 
 // Licensed under the AGPLv3, see LICENCE file for details.
 
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/juju/cmd"
+	"github.com/juju/errors"
 	"github.com/juju/loggo"
 	"github.com/juju/names"
 	"github.com/juju/utils/exec"
@@ -354,7 +355,7 @@ func (u *Uniter) deploy(curl *corecharm.URL, reason Op) error {
 // operation is not affected by the error.
 var errHookFailed = stderrors.New("hook execution failed")
 
-func (u *Uniter) getHookContext(hctxId string, relationId int, remoteUnitName string, actionParams map[string]interface{}) (context *HookContext, err error) {
+func (u *Uniter) getHookContext(hctxId string, relationId int, remoteUnitName string, actionParams map[string]interface{}, actionTag *names.ActionTag) (context *HookContext, err error) {
 
 	apiAddrs, err := u.st.APIAddresses()
 	if err != nil {
@@ -374,9 +375,15 @@ func (u *Uniter) getHookContext(hctxId string, relationId int, remoteUnitName st
 
 	// Make a copy of the proxy settings.
 	proxySettings := u.proxy
-	return NewHookContext(u.unit, hctxId, u.uuid, u.envName, relationId,
+
+	var actData *actionData
+	if actionTag != nil {
+		actData = newActionData(actionTag, actionParams)
+	}
+
+	return NewHookContext(u.unit, u.st, hctxId, u.uuid, u.envName, relationId,
 		remoteUnitName, ctxRelations, apiAddrs, ownerTag, proxySettings,
-		actionParams)
+		actData)
 }
 
 func (u *Uniter) acquireHookLock(message string) (err error) {
@@ -426,7 +433,7 @@ func (u *Uniter) RunCommands(commands string) (results *exec.ExecResponse, err e
 	}
 	defer u.hookLock.Unlock()
 
-	hctx, err := u.getHookContext(hctxId, -1, "", map[string]interface{}(nil))
+	hctx, err := u.getHookContext(hctxId, -1, "", map[string]interface{}(nil), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -495,6 +502,7 @@ func (u *Uniter) runHook(hi hook.Info) (err error) {
 
 	hookName := string(hi.Kind)
 	actionParams := map[string]interface{}(nil)
+	var actionTag *names.ActionTag
 
 	// This value is needed to pass results of Action param validation
 	// in case of error or invalidation.  This is probably bad form; it
@@ -509,13 +517,19 @@ func (u *Uniter) runHook(hi hook.Info) (err error) {
 			return err
 		}
 	} else if hi.Kind == hooks.ActionRequested {
-		action, err := u.st.Action(names.NewActionTag(hi.ActionId))
+		tag := names.NewActionTag(hi.ActionId)
+		action, err := u.st.Action(tag)
 		if err != nil {
 			return err
 		}
 		actionParams = action.Params()
 		hookName = action.Name()
 		_, actionParamsErr = u.validateAction(hookName, actionParams)
+		if actionParamsErr != nil {
+			actionParamsErr = errors.Annotatef(actionParamsErr, "action %q param validation failed", hookName)
+		}
+
+		actionTag = &tag
 	}
 	hctxId := fmt.Sprintf("%s:%s:%d", u.unit.Name(), hookName, u.rand.Int63())
 
@@ -525,7 +539,7 @@ func (u *Uniter) runHook(hi hook.Info) (err error) {
 	}
 	defer u.hookLock.Unlock()
 
-	hctx, err := u.getHookContext(hctxId, relationId, hi.RemoteUnit, actionParams)
+	hctx, err := u.getHookContext(hctxId, relationId, hi.RemoteUnit, actionParams, actionTag)
 	if err != nil {
 		return err
 	}
@@ -549,14 +563,29 @@ func (u *Uniter) runHook(hi hook.Info) (err error) {
 	// with the location as "actions" instead of "hooks".
 	if hi.Kind == hooks.ActionRequested {
 		if actionParamsErr != nil {
-			logger.Errorf("action %q param validation failed: %s", hookName, actionParamsErr.Error())
-			u.notifyHookFailed(hookName, hctx)
-			return u.commitHook(hi)
+			hctx.SetActionFailed(actionParamsErr.Error())
 		}
 		err = hctx.RunAction(hookName, u.charmPath, u.toolsDir, socketPath)
-	} else {
-		err = hctx.RunHook(hookName, u.charmPath, u.toolsDir, socketPath)
+
+		if err != nil {
+			err = errors.Annotatef(err, "action %q had unexpected failure", hookName)
+			if IsMissingHookError(err) {
+				err = errors.Annotatef(err, "action %q not implemented on the charm", hookName)
+			}
+			logger.Errorf("action failed: %s", err.Error())
+			u.notifyHookFailed(hookName, hctx)
+			return errHookFailed
+		}
+		if err := u.writeState(RunHook, Done, &hi, nil); err != nil {
+			return err
+		}
+		logger.Infof(hctx.actionData.ResultsMessage)
+		u.notifyHookCompleted(hookName, hctx)
+		return u.commitHook(hi)
 	}
+
+	// Otherwise, treat it as a normal hook.
+	err = hctx.RunHook(hookName, u.charmPath, u.toolsDir, socketPath)
 
 	// Since the Action validation error was separated, regular error pathways
 	// will still occur correctly.

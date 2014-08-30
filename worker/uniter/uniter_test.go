@@ -1,4 +1,4 @@
-// Copyright 2012, 2013 Canonical Ltd.
+// Copyright 2012, 2013, 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 package uniter_test
@@ -211,13 +211,86 @@ juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 	"snapshot": `
 #!/bin/bash --norc
+action-set outfile.name="snapshot-01.tar" outfile.size="10.3GB"
+action-set outfile.size.magnitude="10.3" outfile.size.units="GB"
+action-set completion.status="yes" completion.time="5m"
+action-set completion="yes"
 juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 	"action-log-fail": `
 #!/bin/bash --norc
-juju-log $JUJU_ENV_UUID fail-%s $JUJU_REMOTE_UNIT
-exit 1
+action-fail "I'm afraid I can't let you do that, Dave."
+action-set foo="still works"
+juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
+	"action-log-fail-error": `
+#!/bin/bash --norc
+action-fail too many arguments
+action-set foo="still works"
+action-fail "A real message"
+juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
+`[1:],
+}
+
+var actionResults = map[string]struct {
+	results map[string]interface{}
+	message string
+	status  string
+	name    string
+}{
+	"snapshot": {
+		results: map[string]interface{}{
+			"outfile": map[string]interface{}{
+				"name": "snapshot-01.tar",
+				"size": map[string]interface{}{
+					"magnitude": "10.3",
+					"units":     "GB",
+				},
+			},
+			"completion": "yes",
+		},
+		status: "complete",
+		name:   "snapshot",
+	},
+	"action-log": {
+		results: map[string]interface{}{},
+		status:  "complete",
+		name:    "action-log",
+	},
+	"action-log-fail": {
+		results: map[string]interface{}{
+			"foo": "still works",
+		},
+		message: "I'm afraid I can't let you do that, Dave.",
+		status:  "fail",
+		name:    "action-log-fail",
+	},
+	"action-log-fail-error": {
+		results: map[string]interface{}{
+			"foo": "still works",
+		},
+		status:  "fail",
+		message: "A real message",
+		name:    "action-log-fail-error",
+	},
+	"snapshot-badparams": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action "snapshot" param validation failed: JSON validation failed: (root).outfile : must be of type string, given 2`,
+		name:    "snapshot",
+	},
+	"snapshot-undefined": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action "snapshot" param validation failed: no spec was defined for action "snapshot"`,
+		name:    "snapshot",
+	},
+	"action-log-missing": {
+		results: map[string]interface{}{},
+		status:  "fail",
+		message: `action failed (not implemented on unit "u/0")`,
+		name:    "action-log",
+	},
 }
 
 var actionsYaml = map[string]string{
@@ -244,6 +317,10 @@ actions:
    action-log-fail:
       params:
 `[1:],
+	"action-log-fail-error": `
+   action-log-fail-error:
+      params:
+`[1:],
 }
 
 func (ctx *context) writeHook(c *gc.C, path string, good bool) {
@@ -256,21 +333,17 @@ func (ctx *context) writeHook(c *gc.C, path string, good bool) {
 	c.Assert(err, gc.IsNil)
 }
 
-func (ctx *context) writeActions(c *gc.C, path string, names []string) {
+func (ctx *context) writeActions(c *gc.C, path string, names ...string) {
 	for _, name := range names {
-		ctx.writeAction(c, path, name)
+		actionPath := filepath.Join(path, "actions", name)
+		action := actions[name]
+		content := fmt.Sprintf(action, filepath.Base(actionPath))
+		err := ioutil.WriteFile(actionPath, []byte(content), 0755)
+		c.Assert(err, gc.IsNil)
 	}
 }
 
-func (ctx *context) writeAction(c *gc.C, path, name string) {
-	actionPath := filepath.Join(path, "actions", name)
-	action := actions[name]
-	content := fmt.Sprintf(action, filepath.Base(actionPath))
-	err := ioutil.WriteFile(actionPath, []byte(content), 0755)
-	c.Assert(err, gc.IsNil)
-}
-
-func (ctx *context) writeActionsYaml(c *gc.C, path string, names []string) {
+func (ctx *context) writeActionsYaml(c *gc.C, path string, names ...string) {
 	actionsYamlPath := filepath.Join(path, "actions.yaml")
 	var actionsYamlFull string
 	// Build an appropriate actions.yaml
@@ -1305,8 +1378,8 @@ var actionEventTests = []uniterTest{
 		"simple action event: defined in actions.yaml, no args",
 		createCharm{
 			customize: func(c *gc.C, ctx *context, path string) {
-				ctx.writeAction(c, path, "action-log")
-				ctx.writeActionsYaml(c, path, []string{"action-log"})
+				ctx.writeActions(c, path, "action-log")
+				ctx.writeActionsYaml(c, path, "action-log")
 			},
 		},
 		serveCharm{},
@@ -1319,12 +1392,51 @@ var actionEventTests = []uniterTest{
 		verifyCharm{},
 		addAction{"action-log", nil},
 		waitHooks{"action-log"},
+		verifyActionResult{"action-log"},
+	), ut(
+		"action-fail causes the action to fail with a message",
+		createCharm{
+			customize: func(c *gc.C, ctx *context, path string) {
+				ctx.writeActions(c, path, "action-log-fail")
+				ctx.writeActionsYaml(c, path, "action-log-fail")
+			},
+		},
+		serveCharm{},
+		ensureStateWorker{},
+		createServiceAndUnit{},
+		startUniter{},
+		waitAddresses{},
+		waitUnit{status: params.StatusStarted},
+		waitHooks{"install", "config-changed", "start"},
+		verifyCharm{},
+		addAction{"action-log-fail", nil},
+		waitHooks{"action-log-fail"},
+		verifyActionResult{"action-log-fail"},
+	), ut(
+		"action-fail with the wrong arguments is an error",
+		createCharm{
+			customize: func(c *gc.C, ctx *context, path string) {
+				ctx.writeActions(c, path, "action-log-fail-error")
+				ctx.writeActionsYaml(c, path, "action-log-fail-error")
+			},
+		},
+		serveCharm{},
+		ensureStateWorker{},
+		createServiceAndUnit{},
+		startUniter{},
+		waitAddresses{},
+		waitUnit{status: params.StatusStarted},
+		waitHooks{"install", "config-changed", "start"},
+		verifyCharm{},
+		addAction{"action-log-fail-error", nil},
+		waitHooks{"action-log-fail-error"},
+		verifyActionResult{"action-log-fail-error"},
 	), ut(
 		"actions with correct params passed are not an error",
 		createCharm{
 			customize: func(c *gc.C, ctx *context, path string) {
-				ctx.writeAction(c, path, "snapshot")
-				ctx.writeActionsYaml(c, path, []string{"snapshot"})
+				ctx.writeActions(c, path, "snapshot")
+				ctx.writeActionsYaml(c, path, "snapshot")
 			},
 		},
 		serveCharm{},
@@ -1340,12 +1452,13 @@ var actionEventTests = []uniterTest{
 			params: map[string]interface{}{"outfile": "foo.bar"},
 		},
 		waitHooks{"snapshot"},
+		verifyActionResult{"snapshot"},
 	), ut(
 		"actions with incorrect params passed are not an error but fail",
 		createCharm{
 			customize: func(c *gc.C, ctx *context, path string) {
-				ctx.writeAction(c, path, "snapshot")
-				ctx.writeActionsYaml(c, path, []string{"snapshot"})
+				ctx.writeActions(c, path, "snapshot")
+				ctx.writeActionsYaml(c, path, "snapshot")
 			},
 		},
 		serveCharm{},
@@ -1360,12 +1473,13 @@ var actionEventTests = []uniterTest{
 			name:   "snapshot",
 			params: map[string]interface{}{"outfile": 2},
 		},
-		waitHooks{"fail-snapshot"},
+		waitHooks{"snapshot"},
+		verifyActionResult{"snapshot-badparams"},
 	), ut(
-		"actions not defined in actions.yaml fail without an error",
+		"actions not defined in actions.yaml fail without causing a uniter error",
 		createCharm{
 			customize: func(c *gc.C, ctx *context, path string) {
-				ctx.writeAction(c, path, "snapshot")
+				ctx.writeActions(c, path, "snapshot")
 			},
 		},
 		serveCharm{},
@@ -1377,26 +1491,22 @@ var actionEventTests = []uniterTest{
 		waitHooks{"install", "config-changed", "start"},
 		verifyCharm{},
 		addAction{"snapshot", map[string]interface{}{"outfile": "foo.bar"}},
-		waitHooks{"fail-snapshot"},
+		waitHooks{"snapshot"},
+		verifyActionResult{"snapshot-undefined"},
 	), ut(
 		"pending actions get consumed",
 		createCharm{
 			customize: func(c *gc.C, ctx *context, path string) {
-				ctx.writeAction(c, path, "action-log")
-				ctx.writeAction(c, path, "action-log-fail")
-				ctx.writeActionsYaml(c, path, []string{
-					"action-log",
-					"action-log-fail",
-				})
+				ctx.writeActions(c, path, "action-log")
+				ctx.writeActionsYaml(c, path, "action-log")
 			},
 		},
 		serveCharm{},
 		ensureStateWorker{},
 		createServiceAndUnit{},
 		addAction{"action-log", nil},
-		addAction{"action-log-fail", nil},
 		addAction{"action-log", nil},
-		addAction{"action-log-fail", nil},
+		addAction{"action-log", nil},
 		startUniter{},
 		waitAddresses{},
 		waitUnit{status: params.StatusStarted},
@@ -1404,13 +1514,19 @@ var actionEventTests = []uniterTest{
 		verifyCharm{},
 		waitHooks{
 			"action-log",
-			"fail-action-log-fail",
 			"action-log",
-			"fail-action-log-fail",
+			"action-log",
 		},
+		verifyActionResult{"action-log"},
+		verifyActionResult{"action-log"},
+		verifyActionResult{"action-log"},
 	), ut(
-		"actions not implemented are not errors, similarly to hooks",
-		createCharm{},
+		"actions not implemented are errors, unlike hooks",
+		createCharm{
+			customize: func(c *gc.C, ctx *context, path string) {
+				ctx.writeActionsYaml(c, path, "action-log")
+			},
+		},
 		serveCharm{},
 		ensureStateWorker{},
 		createServiceAndUnit{},
@@ -1420,7 +1536,15 @@ var actionEventTests = []uniterTest{
 		waitHooks{"install", "config-changed", "start"},
 		verifyCharm{},
 		addAction{"action-log", nil},
-		waitNoHooks{"action-log", "fail-action-log"},
+		waitHooks{"fail-action-log"},
+		verifyActionResult{"action-log-missing"},
+		waitUnit{
+			status: params.StatusError,
+			info:   `hook failed: "action-requested-u/0_a_0"`,
+			data: map[string]interface{}{
+				"hook": "action-log",
+			},
+		},
 	),
 }
 
@@ -1956,6 +2080,45 @@ func (s waitHooks) step(c *gc.C, ctx *context) {
 			}
 		case <-timeout:
 			c.Fatalf("never got expected hooks")
+		}
+	}
+}
+
+type verifyActionResult struct {
+	action string
+}
+
+func (s verifyActionResult) step(c *gc.C, ctx *context) {
+	timeout := time.After(worstCase)
+	action := s.action
+	expected, ok := actionResults[action]
+	c.Assert(ok, gc.Equals, true)
+	c.Logf("Verifying action %q matches %#v", action, expected)
+	resultsWatcher := ctx.st.WatchActionResults()
+	for {
+		ctx.s.BackingState.StartSync()
+		select {
+		case <-timeout:
+			c.Fatalf("timed out waiting for action results")
+		case changes := <-resultsWatcher.Changes():
+			c.Logf("Got changes: %#v", changes)
+			checked := false
+			for _, change := range changes {
+				c.Logf("Change: %s", change)
+				result, err := ctx.st.ActionResult(change)
+				c.Assert(err, gc.IsNil)
+				payload, message := result.Results()
+				status := string(result.Status())
+				name := result.ActionName()
+				c.Assert(payload, jc.DeepEquals, expected.results)
+				c.Assert(status, gc.Equals, expected.status)
+				c.Assert(message, gc.Equals, expected.message)
+				c.Assert(name, gc.Equals, expected.name)
+				checked = true
+			}
+			if checked {
+				return
+			}
 		}
 	}
 }
