@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/juju/errors"
 	"github.com/juju/loggo"
 	utilexec "github.com/juju/utils/exec"
 	"github.com/juju/utils/proxy"
@@ -325,6 +326,42 @@ func (ctx *HookContext) finalizeContext(process string, err error) error {
 			}
 		}
 		rctx.ClearCache()
+	}
+	// If it was not an Action, just short-circuit to return err.
+	if ctx.actionTag == nil {
+		return err
+	}
+
+	// If the state handle was nil, we cannot call home and this will panic.
+	if ctx.state == nil {
+		return errors.New("action cannot call home, state handle undefined")
+	}
+
+	// Otherwise, set up for handling ActionFinish
+	message := ctx.actionResults.Message
+	results := ctx.actionResults.Results
+	status := params.ActionCompleted
+	if ctx.actionResults.Status == actionStatusFailed {
+		status = params.ActionFailed
+	}
+
+	if err != nil {
+		message = err.Error()
+		// If it was a missing hook error, the action implementation
+		// is missing, and that's a problem with the unit.
+		if IsMissingHookError(err) {
+			message = fmt.Sprintf("action failed (not implemented on unit %q)", ctx.UnitName())
+		}
+		status = params.ActionFailed
+	}
+
+	callErr := ctx.state.ActionFinish(*ctx.actionTag, status, results, message)
+	if callErr != nil {
+		if err != nil {
+			err = errors.Wrap(err, callErr)
+		} else {
+			err = callErr
+		}
 	}
 	return err
 }
