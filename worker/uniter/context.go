@@ -186,10 +186,8 @@ func (ctx *HookContext) ActionParams() map[string]interface{} {
 // SetActionFailed sets the state of the action to "fail" and sets the results
 // message to the string argument.  This only causes any change the first time.
 func (ctx *HookContext) SetActionFailed(message string) {
-	if ctx.actionResults.Status != actionStatusFailed {
-		ctx.actionResults.Message = message
-		ctx.actionResults.Status = actionStatusFailed
-	}
+	ctx.actionResults.Message = message
+	ctx.actionResults.Status = actionStatusFailed
 }
 
 // UpdateActionResults inserts new values for use with action-set and

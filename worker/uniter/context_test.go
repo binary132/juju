@@ -787,10 +787,14 @@ func (s *HookContextSuite) TestActionSetFailed(c *gc.C) {
 		expectedStatus: "init",
 		code:           2,
 	}, {
-		description:    "Calling fail twice only uses the first invocation",
-		commands:       [][]string{[]string{"message"}, []string{"discarded"}},
+		description: "Calling fail multiple times only uses the last invocation",
+		commands: [][]string{
+			[]string{"message"},
+			[]string{"discarded"},
+			[]string{"oops"},
+		},
 		expectedStatus: "fail",
-		expectedMsg:    "message",
+		expectedMsg:    "oops",
 	}}
 
 	for i, t := range tests {
