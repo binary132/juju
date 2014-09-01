@@ -216,14 +216,14 @@ juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 	"action-log-fail": `
 #!/bin/bash --norc
 action-fail "I'm afraid I can't let you do that, Dave."
-#action-set foo="still works"
+action-set foo="still works"
 juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 	"action-log-fail-error": `
 #!/bin/bash --norc
 action-fail too many arguments
 action-set foo="still works"
-#action-fail "A real message"
+action-fail "A real message"
 juju-log $JUJU_ENV_UUID %s $JUJU_REMOTE_UNIT
 `[1:],
 }
@@ -254,9 +254,9 @@ var actionResults = map[string]struct {
 		name:    "action-log",
 	},
 	"action-log-fail": {
-		results: map[string]interface{}{},
-		//	"foo": "still works",
-		//},
+		results: map[string]interface{}{
+			"foo": "still works",
+		},
 		message: "I'm afraid I can't let you do that, Dave.",
 		status:  "fail",
 		name:    "action-log-fail",
@@ -265,8 +265,9 @@ var actionResults = map[string]struct {
 		results: map[string]interface{}{
 			"foo": "still works",
 		},
-		status: "complete",
-		name:   "action-log-fail-error",
+		status:  "fail",
+		message: "A real message",
+		name:    "action-log-fail-error",
 	},
 	"snapshot-badparams": {
 		results: map[string]interface{}{},
@@ -1386,6 +1387,7 @@ var actionEventTests = []uniterTest{
 		verifyCharm{},
 		addAction{"action-log", nil},
 		waitHooks{"action-log"},
+		verifyActionResult{"action-log"},
 	), ut(
 		"action-fail causes the action to fail with a message",
 		createCharm{
@@ -1404,7 +1406,7 @@ var actionEventTests = []uniterTest{
 		verifyCharm{},
 		addAction{"action-log-fail", nil},
 		waitHooks{"action-log-fail"},
-		verifyActionResults{"action-log-fail"},
+		verifyActionResult{"action-log-fail"},
 	), ut(
 		"action-fail with the wrong arguments is an error",
 		createCharm{
@@ -1423,7 +1425,7 @@ var actionEventTests = []uniterTest{
 		verifyCharm{},
 		addAction{"action-log-fail-error", nil},
 		waitHooks{"action-log-fail-error"},
-		verifyActionResults{"action-log-fail-error"},
+		verifyActionResult{"action-log-fail-error"},
 	), ut(
 		"actions with correct params passed are not an error",
 		createCharm{
@@ -1445,6 +1447,7 @@ var actionEventTests = []uniterTest{
 			params: map[string]interface{}{"outfile": "foo.bar"},
 		},
 		waitHooks{"snapshot"},
+		verifyActionResult{"snapshot"},
 	), ut(
 		"actions with incorrect params passed are not an error but fail",
 		createCharm{
@@ -1465,7 +1468,8 @@ var actionEventTests = []uniterTest{
 			name:   "snapshot",
 			params: map[string]interface{}{"outfile": 2},
 		},
-		waitHooks{"fail-snapshot"},
+		waitHooks{"snapshot"},
+		verifyActionResult{"snapshot-badparams"},
 	), ut(
 		"actions not defined in actions.yaml fail without an error",
 		createCharm{
@@ -1482,7 +1486,8 @@ var actionEventTests = []uniterTest{
 		waitHooks{"install", "config-changed", "start"},
 		verifyCharm{},
 		addAction{"snapshot", map[string]interface{}{"outfile": "foo.bar"}},
-		waitHooks{"fail-snapshot"},
+		waitHooks{"snapshot"},
+		verifyActionResult{"snapshot-undefined"},
 	), ut(
 		"pending actions get consumed",
 		createCharm{
@@ -1508,9 +1513,9 @@ var actionEventTests = []uniterTest{
 			"action-log",
 			"action-log",
 		},
-		verifyActionResults{"action-log"},
-		verifyActionResults{"action-log"},
-		verifyActionResults{"action-log"},
+		verifyActionResult{"action-log"},
+		verifyActionResult{"action-log"},
+		verifyActionResult{"action-log"},
 	), ut(
 		"actions not implemented are errors, unlike hooks",
 		createCharm{
@@ -1527,7 +1532,15 @@ var actionEventTests = []uniterTest{
 		waitHooks{"install", "config-changed", "start"},
 		verifyCharm{},
 		addAction{"action-log", nil},
-		waitNoHooks{"action-log", "fail-action-log"},
+		waitHooks{"fail-action-log"},
+		verifyActionResult{"action-log-missing"},
+		waitUnit{
+			status: params.StatusError,
+			info:   `hook failed: "action-requested-u/0_a_0"`,
+			data: params.StatusData{
+				"hook": "action-log",
+			},
+		},
 	),
 }
 
@@ -2067,11 +2080,11 @@ func (s waitHooks) step(c *gc.C, ctx *context) {
 	}
 }
 
-type verifyActionResults struct {
+type verifyActionResult struct {
 	action string
 }
 
-func (s verifyActionResults) step(c *gc.C, ctx *context) {
+func (s verifyActionResult) step(c *gc.C, ctx *context) {
 	timeout := time.After(worstCase)
 	action := s.action
 	expected, ok := actionResults[action]
