@@ -19,6 +19,26 @@ type ActionGetSuite struct {
 
 var _ = gc.Suite(&ActionGetSuite{})
 
+type nonActionGettingContext struct {
+	Context
+}
+
+func (ctx *nonActionGettingContext) ActionParams() (map[string]interface{}, error) {
+	return nil, fmt.Errorf("ActionParams queried from non-Action hook context")
+}
+
+func (s *ActionGetSuite) TestNonActionRunFail(c *gc.C) {
+	hctx := &nonActionGettingContext{}
+	com, err := jujuc.NewCommand(hctx, "action-get")
+	c.Assert(err, gc.IsNil)
+	ctx := testing.Context(c)
+	code := cmd.Main(com, ctx, []string{})
+	c.Check(code, gc.Equals, 1)
+	c.Check(bufferString(ctx.Stdout), gc.Equals, "")
+	expect := fmt.Sprintf(`(.|\n)*error: %s\n`, "ActionParams queried from non-Action hook context")
+	c.Check(bufferString(ctx.Stderr), gc.Matches, expect)
+}
+
 func (s *ActionGetSuite) TestActionGet(c *gc.C) {
 	var actionGetTestMaps = []map[string]interface{}{
 		map[string]interface{}{
@@ -219,9 +239,8 @@ func (s *ActionGetSuite) TestActionGet(c *gc.C) {
 
 	for i, t := range actionGetTests {
 		c.Logf("test %d: %s\n args: %#v", i, t.summary, t.args)
-		hctx := s.GetHookContext(c, -1, "")
+		hctx := &Context{}
 		hctx.actionParams = t.actionParams
-
 		com, err := jujuc.NewCommand(hctx, "action-get")
 		c.Assert(err, gc.IsNil)
 		ctx := testing.Context(c)

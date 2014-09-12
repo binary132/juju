@@ -79,6 +79,7 @@ func setSettings(c *gc.C, ru *state.RelationUnit, settings map[string]interface{
 }
 
 type Context struct {
+	jujuc.Context
 	actionParams map[string]interface{}
 	ports        set.Strings
 	relid        int

@@ -1389,6 +1389,21 @@ var actionEventTests = []uniterTest{
 			params: map[string]interface{}{"outfile": "foo.bar"},
 		},
 		waitHooks{"snapshot"},
+		verifyActionResult{
+			expectedName: "snapshot",
+			expectedResults: map[string]interface{}{
+				"outfile": map[string]interface{}{
+					"name": "snapshot-01.tar",
+					"size": map[string]interface{}{
+						"magnitude": "10.3",
+						"units":     "GB",
+					},
+				},
+				"completion": "yes",
+			},
+			expectedStatus: "complete",
+		},
+		waitUnit{status: params.StatusStarted},
 	), ut(
 		"actions with incorrect params passed are not an error but fail",
 		createCharm{

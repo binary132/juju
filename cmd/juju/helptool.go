@@ -15,7 +15,9 @@ import (
 
 // dummyHookContext implements jujuc.Context,
 // as expected by jujuc.NewCommand.
-type dummyHookContext struct{}
+type dummyHookContext struct {
+	jujuc.Context
+}
 
 func (dummyHookContext) UnitName() string {
 	return ""
@@ -34,11 +36,6 @@ func (dummyHookContext) ClosePort(protocol string, port int) error {
 }
 func (dummyHookContext) ConfigSettings() (charm.Settings, error) {
 	return charm.NewConfig().DefaultSettings(), nil
-}
-func (dummyHookContext) ActionParams() map[string]interface{} {
-	return nil
-}
-func (dummyHookContext) UpdateActionResults(keys []string, value string) {
 }
 func (dummyHookContext) HookRelation() (jujuc.ContextRelation, bool) {
 	return nil, false
