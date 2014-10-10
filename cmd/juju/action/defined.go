@@ -1,4 +1,4 @@
-// Copyright 2012-2014 Canonical Ltd.
+// Copyright 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 package action
@@ -22,7 +22,7 @@ func (c *DefinedCommand) Info() *cmd.Info {
 	return &cmd.Info{
 		Name:    "defined",
 		Args:    "<service name> [--schema]",
-		Purpose: "TODO: show actions defined for a service",
+		Purpose: "WIP: show actions defined for a service",
 		Doc:     definedDoc,
 	}
 }
