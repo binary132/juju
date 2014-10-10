@@ -12,6 +12,7 @@ import (
 
 	jujucmd "github.com/juju/juju/cmd"
 	"github.com/juju/juju/cmd/envcmd"
+	"github.com/juju/juju/cmd/juju/action"
 	"github.com/juju/juju/cmd/juju/backups"
 	"github.com/juju/juju/cmd/juju/user"
 	"github.com/juju/juju/environs"
@@ -156,6 +157,9 @@ func registerCommands(r commandRegistry, ctx *cmd.Context) {
 
 	// Manage users and access
 	r.Register(user.NewSuperCommand())
+
+	// Manage and control actions.
+	r.Register(action.NewActionCommand())
 
 	// Manage state server availability.
 	r.Register(wrapEnvCommand(&EnsureAvailabilityCommand{}))
