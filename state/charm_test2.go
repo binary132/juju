@@ -10,9 +10,9 @@ import (
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/juju/charm.v4"
+	charmtesting "gopkg.in/juju/charm.v4/testing"
 
 	"github.com/juju/juju/state"
-	"github.com/juju/juju/testcharms"
 )
 
 type CharmSuite struct {
@@ -29,6 +29,33 @@ func (s *CharmSuite) SetUpTest(c *gc.C) {
 }
 
 func (s *CharmSuite) TestCharm(c *gc.C) {
+	expectedActions := &charm.Actions{
+		map[string]charm.ActionSpec{
+			"snapshot": charm.ActionSpec{
+				Description: "Take a snapshot of the database.",
+				Params: map[string]interface{}{
+					"outfile": map[string]interface{}{
+						"description": "The file to write out to.",
+						"type":        "string",
+						"default":     "foo.bz2"},
+					"compression-type": map[string]interface{}{
+						"$schema":     "http://json-schema.org/draft-04/schema#",
+						"title":       "Compression type",
+						"description": "The kind and quality of snapshot compression",
+						"type":        "object",
+						"properties": map[string]interface{}{
+							"kind": map[string]interface{}{
+								"description": "The compression tool to use.",
+								"type":        "string"},
+							"quality": map[string]interface{}{
+								"description": "Compression quality from 0 to 9.",
+								"minimum":     0,
+								"maximum":     9}},
+						"required": []interface{}{"kind"}}}},
+			"kill": charm.ActionSpec{
+				Description: "Kill the database.",
+				Params:      map[string]interface{}{}}}}
+
 	dummy, err := s.State.Charm(s.curl)
 	c.Assert(err, gc.IsNil)
 	c.Assert(dummy.URL().String(), gc.Equals, s.curl.String())
@@ -46,22 +73,7 @@ func (s *CharmSuite) TestCharm(c *gc.C) {
 			Type:        "string",
 		},
 	)
-	actions := dummy.Actions()
-	c.Assert(actions, gc.NotNil)
-	c.Assert(actions.ActionSpecs, gc.Not(gc.HasLen), 0)
-	c.Assert(actions.ActionSpecs["snapshot"], gc.NotNil)
-	c.Assert(actions.ActionSpecs["snapshot"].Params, gc.Not(gc.HasLen), 0)
-	c.Assert(actions.ActionSpecs["snapshot"], gc.DeepEquals,
-		charm.ActionSpec{
-			Description: "Take a snapshot of the database.",
-			Params: map[string]interface{}{
-				"outfile": map[string]interface{}{
-					"description": "The file to write out to.",
-					"type":        "string",
-					"default":     "foo.bz2",
-				},
-			},
-		})
+	c.Assert(dummy.Actions(), gc.DeepEquals, expectedActions)
 }
 
 func (s *CharmSuite) TestCharmNotFound(c *gc.C) {
@@ -93,7 +105,7 @@ func assertCustomCharm(c *gc.C, ch *state.Charm, series string, meta *charm.Meta
 }
 
 func assertStandardCharm(c *gc.C, ch *state.Charm, series string) {
-	chd := testcharms.Repo.CharmDir(ch.Meta().Name)
+	chd := charmtesting.Charms.CharmDir(ch.Meta().Name)
 	assertCustomCharm(c, ch, series, chd.Meta(), chd.Config(), chd.Metrics(), chd.Revision())
 }
 
@@ -108,7 +120,7 @@ func forEachStandardCharm(c *gc.C, f func(name string)) {
 
 func (s *CharmTestHelperSuite) TestSimple(c *gc.C) {
 	forEachStandardCharm(c, func(name string) {
-		chd := testcharms.Repo.CharmDir(name)
+		chd := charmtesting.Charms.CharmDir(name)
 		meta := chd.Meta()
 		config := chd.Config()
 		metrics := chd.Metrics()
@@ -135,7 +147,7 @@ func (s *CharmTestHelperSuite) TestConfigCharm(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	forEachStandardCharm(c, func(name string) {
-		chd := testcharms.Repo.CharmDir(name)
+		chd := charmtesting.Charms.CharmDir(name)
 		meta := chd.Meta()
 		metrics := chd.Metrics()
 
@@ -176,7 +188,7 @@ func (s *CharmTestHelperSuite) TestMetricsCharm(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	forEachStandardCharm(c, func(name string) {
-		chd := testcharms.Repo.CharmDir(name)
+		chd := charmtesting.Charms.CharmDir(name)
 		meta := chd.Meta()
 		config := chd.Config()
 
@@ -192,7 +204,7 @@ description: blah blah
 
 func (s *CharmTestHelperSuite) TestMetaCharm(c *gc.C) {
 	forEachStandardCharm(c, func(name string) {
-		chd := testcharms.Repo.CharmDir(name)
+		chd := charmtesting.Charms.CharmDir(name)
 		config := chd.Config()
 		metrics := chd.Metrics()
 		metaYaml := "name: " + name + metaYamlSnippet
@@ -205,9 +217,9 @@ func (s *CharmTestHelperSuite) TestMetaCharm(c *gc.C) {
 }
 
 func (s *CharmTestHelperSuite) TestTestingCharm(c *gc.C) {
-	added := s.AddTestingCharm(c, "metered")
+	added := s.AddTestingCharm(c, "metered-custom")
 	c.Assert(added.Metrics(), gc.NotNil)
 
-	chd := testcharms.Repo.CharmDir("metered")
+	chd := charmtesting.Charms.CharmDir("metered-custom")
 	c.Assert(chd.Metrics(), gc.DeepEquals, added.Metrics())
 }
