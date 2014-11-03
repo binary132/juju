@@ -64,12 +64,13 @@ the map as directed below.
  - Each of these Action names MUST be the top level key of a map.
  - Each Action MUST have a string as its name, which MAY contain but MUST NOT
    begin or end with hyphens.  Each Action MUST have only lowercase names.
- - The map for each named action MUST be two keys: `description` and `params`.
+ - The map for each named action MUST have ONLY keys `description` and `params`
+   and SHOULD have both, but both keys MAY be omitted.
  - `description` MUST have a string value.  This value SHOULD be the short
    description of the Action.
- - `params` MUST be the top level key of a map, but the map MAY be an empty map.
+ - `params` MUST be the top level key of a map, but the map MAY be empty.
  - The map for `params` MUST specify [JSON-Schema](http://json-schema.org/)
-   for all parameters for the action, as in the following example.
+   for the parameters for the action, as in the following example.
  - The map for `params` MUST NOT contain a `$schema` key.  `$schema` is not
    supported by Actions at this time.
 
@@ -77,33 +78,31 @@ Example:
 
 ```yaml
 # actions.yaml
-
-actions: 
+actions:
   snapshot:
     description: Take a snapshot of the database.
     params:
-      outfile:
-        description: The file to write out to.
-        type: string
-        default: foo.bz2
-      compression-type:
-        title: Compression type
-        description: The kind and quality of snapshot compression
+      title: Snapshot params
+        description: Take a snapshot of the database.
         type: object
         properties:
-          kind:
-            description: The compression tool to use.
+          outfile:
+            description: The file to write out to.
             type: string
           quality:
-            description: Compression quality from 0 to 9.
+            description: Compression quality
+            type: integer
             minimum: 0
             maximum: 9
-        required: [kind]
+        required: [outfile]
   kill:
     description: Kill the database.
 ```
 
-See [Validation](#param-validation-with-gojsonschema) for more details.
+> Note that the value for `params` is [a JSON-Schema conformant](http://json-schema.org/examples.html) YAML map.
+
+> Note also that `kill` contains no `params` definition.  This Action takes no
+  arguments.
 
 This would support an Action call such as:
 
@@ -112,10 +111,12 @@ This would support an Action call such as:
 where `snap.yml` is:
 
 ```yaml
-compression-type:
-  kind: gzip
-  quality: 3
+outfile:
+  out-2014-11-03.bz2
+  quality: 5
 ```
+
+See [Validation](#param-validation-with-gojsonschema) for more details.
 
 --- 
 
