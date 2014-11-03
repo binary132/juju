@@ -1,3 +1,7 @@
+TODO: actions at the s/Service/Unit/g level
+TODO: make sure validation is clear
+TODO: what do charm authors need to know?  slice out technical validation
+
 # Actions
 
  - [What is an Action?](#actions-services-and-charms)
@@ -49,8 +53,11 @@ details.
 The Charm author must define an actions.yml file in the Charm root
 directory.  This document is used to define the schema which is used to
 validate the parameters passed with Action commands.  See [Validation](#param-validation-with-gojsonschema).
+The Charm author must also put the Action executables or scripts in the
+`actions/` directory in the charm.  Their names must match the names given in
+the map as directed below.
 
-This file must be a YAML map which conforms to the following pattern:
+`actions.yaml` must contain a YAML map which conforms to the following pattern:
 
  - Top level key MUST be `actions`.
  - Next level keys MUST be the names of the Action scripts for the charm.
