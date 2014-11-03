@@ -1,6 +1,6 @@
-TODO: actions at the s/Service/Unit/g level
-TODO: make sure validation is clear
-TODO: what do charm authors need to know?  slice out technical validation
+[//]: # (TODO: actions at the s/Service/Unit/g level)
+[//]: # (TODO: make sure validation is clear)
+[//]: # (TODO: what do charm authors need to know?  slice out technical validation)
 
 # Actions
 
