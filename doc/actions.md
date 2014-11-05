@@ -332,31 +332,112 @@ Note that any types which implement Charm must also implement Actions().
 
 When an Action script runs, it runs in a [Hook environment](#charms-in-action.md#execution-environment).  This means
 that any Action script or executable has access to special commands from the
-environment it runs in:
+environment it runs in.
 
- - `action-get [<key>.<key>...]` -- retrieve the params passed with an action.
+# Hook interaction
 
-   Example:
+See jujud commands available via `juju help-tool <command name>`.
 
-   ```bash
-   $ action-get outfile.name` 
-   "foo.bz2"
-   ```
- - `action-set <key>[.key.key]=<value>[ ...]` -- insert or replace values in a map to be returned after completion.
+#### action-get
 
-   Example:
+```bash
+Usage: action-get [options] [<key>[.<key>.<key>...]]
+Purpose: get action parameters
 
-   ```bash
-   $ action-set outfile.size=10.2G success=true
-   ```
+options:
+--format  (= smart)
+    specify output format (json|smart|yaml)
+-o, --output (= "")
+    specify an output file
 
- - `action-fail [<message>]` -- set the action to failed with a message.
+action-get will print the value of the parameter at the given key, serialized
+as YAML.  If multiple keys are passed, action-get will recurse into the param
+map as needed.
+```
 
-   Example:
+Ex. 1:
+```bash
+action-get --format=yaml
+```
+RESULTS:
+```yaml
+outfile:
+  name: foo.gz
+compression:
+  kind: gzip
+  quality: 3
+```
 
-   ```bash
-   $ action-fail "I'm afraid I can't let you do that, Dave."
-   ```
+#### action-set
+
+```bash
+usage: action-set <key>=<value> [<key>=<value> ...]
+purpose: set action results
+
+action-set adds the given values to the results map of the Action.  This map
+is returned to the user after the completion of the Action.
+```
+
+Ex. 1:
+```bash
+action-set foo=5 bar=hello baz.x=3 baz.y=4
+```
+
+RESULT:
+```yaml
+foo: 5
+bar: hello
+baz:
+  x: 3
+  y: 4
+```
+
+Ex. 2:
+```bash
+action-set foo.bar=5 foo.bar.baz=outfile
+action-set foo=5 
+action-set bar.foo=3 bar.baz.foo=hello
+action-set bar.baz.bar=4.3
+```
+RESULT:
+
+```yaml
+foo: 5 # Note foo got overwritten in the second invocation.
+bar: 
+  foo: 3
+  baz: 
+    foo: hello
+    bar: 4.3
+```
+
+Ex. 3
+```bash
+action-set outfile.size=10G
+action-set foo.bar=2
+action-set foo.baz.val=3
+action-set foo.bar.zab=4
+action-set foo.baz=1
+```
+RESULT:
+```yaml
+outfile:
+  size: "10G"
+foo:
+  bar:
+    zab: "4"
+  baz: "1"
+```
+
+#### action-fail
+
+```bash
+usage: action-fail ["<failure message>"]
+purpose: set action fail status with message
+
+action-fail sets the action's fail state with a given error message.  Using
+action-fail without a failure message will set a default message indicating a
+problem with the action.
+```
 
 ---
 
