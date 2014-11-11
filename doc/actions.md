@@ -83,18 +83,18 @@ actions:
     description: Take a snapshot of the database.
     params:
       title: Snapshot params
-        description: Take a snapshot of the database.
-        type: object
-        properties:
-          outfile:
-            description: The file to write out to.
-            type: string
-          quality:
-            description: Compression quality
-            type: integer
-            minimum: 0
-            maximum: 9
-        required: [outfile]
+      description: Arguments to snapshot.
+      type: object
+      properties:
+        outfile:
+          description: The file to write out to.
+          type: string
+        quality:
+          description: Compression quality
+          type: integer
+          minimum: 0
+          maximum: 9
+      required: [outfile]
   kill:
     description: Kill the database.
 ```
