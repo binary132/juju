@@ -89,11 +89,19 @@ actions:
         outfile:
           description: The file to write out to.
           type: string
-        quality:
-          description: Compression quality
-          type: integer
-          minimum: 0
-          maximum: 9
+        compression:
+          description: How to compress the outfile.
+          type: object
+          properties:
+            kind:
+              description: The utility to compress with.
+              type: string
+              enum: [gzip, bzip2, xz]
+            quality:
+              description: Compression quality
+              type: integer
+              minimum: 0
+              maximum: 9
       required: [outfile]
   kill:
     description: Kill the database.
@@ -113,7 +121,9 @@ where `snap.yml` is:
 ```yaml
 outfile:
   out-2014-11-03.bz2
-  quality: 5
+  compression:
+    kind: xz
+    quality: 5
 ```
 
 See [Validation](#param-validation-with-gojsonschema) for more details.
