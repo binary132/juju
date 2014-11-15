@@ -13,7 +13,8 @@ import (
 // DefinedCommand lists actions defined by the charm of a given service.
 type DefinedCommand struct {
 	ActionCommandBase
-	ServiceTag names.ServiceTag
+	serviceTag names.serviceTag
+	fullSchema bool
 	out        cmd.Output
 }
 
@@ -23,6 +24,15 @@ description.  To show the schema for the actions, use --schema.
 
 For more information, see also the 'do' subcommand, which executes actions.
 `
+
+// Set up the YAML output.
+func (c *DefinedCommand) SetFlags(f *gnuflag.FlagSet) {
+	// TODO(binary132) add json output?
+	c.out.AddFlags(f, "yaml", map[string]cmd.Formatter{
+		"yaml": cmd.FormatYaml,
+	})
+	f.BoolVar(&c.fullSchema, "schema", false, "display the full action schema")
+}
 
 func (c *DefinedCommand) Info() *cmd.Info {
 	return &cmd.Info{
@@ -43,19 +53,11 @@ func (c *DefinedCommand) Init(args []string) error {
 		if !names.IsValidService(svcName) {
 			return errors.Errorf("invalid service name %q", svcName)
 		}
-		c.ServiceTag = names.NewServiceTag(svcName)
+		c.serviceTag = names.NewserviceTag(svcName)
 		return nil
 	default:
 		return cmd.CheckEmpty(args[1:])
 	}
-}
-
-// Set up the YAML output.
-func (c *DefinedCommand) SetFlags(f *gnuflag.FlagSet) {
-	// TODO(binary132) add json output?
-	c.out.AddFlags(f, "yaml", map[string]cmd.Formatter{
-		"yaml": cmd.FormatYaml,
-	})
 }
 
 // Run grabs the Actions spec from the api.  It then sets up a sensible
@@ -67,10 +69,26 @@ func (c *DefinedCommand) Run(ctx *cmd.Context) error {
 	}
 	defer api.Close()
 
-	actions, err := api.ServiceCharmActions(c.ServiceTag)
+	actions, err := api.ServiceCharmActions(c.serviceTag)
 	if err != nil {
 		return err
 	}
 	actionSpecs := actions.ActionSpecs
+	numActionSpecs := len(actions.ActionSpecs)
+	if numActionSpecs == 0 {
+		return c.out.Write(ctx, "No actions defined for %s", c.serviceTag)
+	}
+
+	if !c.fullSchema {
+		tabbedResults := [][]string{}
+		for name, spec := range actionSpecs.ActionSpecs {
+			tabbedResults = append(tabbedResults, []string{name, spec.Description})
+		}
+		output, err := writeTabbedString(tabbedResults)
+		if err != nil {
+			return errors.Wrap(err, errors.New("action formatting failed"))
+		}
+		return c.out.Write(ctx, output)
+	}
 	return c.out.Write(ctx, actionSpecs)
 }

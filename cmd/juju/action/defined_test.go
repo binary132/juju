@@ -34,10 +34,11 @@ func (s *DefinedSuite) TestHelp(c *gc.C) {
 
 func (s *DefinedSuite) TestInit(c *gc.C) {
 	tests := []struct {
-		should      string
-		args        []string
-		svcTag      names.Service
-		errorString string
+		should       string
+		args         []string
+		svcTag       names.Service
+		outputSchema bool
+		errorString  string
 	}{{
 		should:      "fail with missing service name",
 		args:        []string{},
@@ -51,9 +52,10 @@ func (s *DefinedSuite) TestInit(c *gc.C) {
 		args:   []string{"mysql"},
 		svcTag: names.NewServiceTag("mysql"),
 	}, {
-		should: "init properly with valid service name and --schema",
-		args:   []string{"mysql"},
-		svcTag: names.NewServiceTag("mysql"),
+		should:       "init properly with valid service name and --schema",
+		args:         []string{"--schema", "mysql"},
+		outputSchema: true,
+		svcTag:       names.NewServiceTag("mysql"),
 	}}
 
 	for i, test := range tests {
@@ -62,10 +64,10 @@ func (s *DefinedSuite) TestInit(c *gc.C) {
 		err := testing.InitCommand(s.subcommand, t.args)
 		if test.ErrorString == "" {
 			c.Check(definedCmd.ServiceTag, gc.Equals, t.svcTag)
+			c.Check(definedCmd.fullSchema, gc.Equals, t.outputSchema)
 		} else {
 			c.Check(err, gc.ErrorMatches, t.errorString)
 		}
-		// wip
 	}
 }
 
