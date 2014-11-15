@@ -22,7 +22,7 @@ func (c *DefinedCommand) Info() *cmd.Info {
 	return &cmd.Info{
 		Name:    "defined",
 		Args:    "<service name> [--schema]",
-		Purpose: "WIP: show actions defined for a service",
+		Purpose: "TODO: show actions defined for a service",
 		Doc:     definedDoc,
 	}
 }
