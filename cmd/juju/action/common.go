@@ -1,10 +1,12 @@
 package action
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
+	"text/tabwriter"
 
 	"github.com/juju/cmd"
+	"github.com/juju/errors"
 	"github.com/juju/juju/apiserver/params"
 	yaml "gopkg.in/yaml.v1"
 )
@@ -85,4 +87,27 @@ func displayActionResult(result params.ActionResult, ctx *cmd.Context, out cmd.O
 	}
 
 	return nil
+}
+
+// tabbedString returns a columnated string from a list of rows of two items,
+// separated by sep.
+func tabbedString(inputs [][]string, sep string) (string, error) {
+	var b bytes.Buffer
+
+	// Format in tab-separated columns with a tab stop of 8.
+	w := new(tabwriter.Writer)
+	w.Init(&b, 0, 8, 0, '\t', 0)
+	for i, row := range inputs {
+		if len(row) != 2 {
+			return "", errors.Errorf("row must have only two items, got %#v", row)
+		}
+		if i == len(inputs)-1 {
+			fmt.Fprintf(w, "%s\t%s%s", row[0], sep, row[1])
+			continue
+		}
+		fmt.Fprintf(w, "%s\t%s%s\n", row[0], sep, row[1])
+	}
+	w.Flush()
+
+	return b.String(), nil
 }

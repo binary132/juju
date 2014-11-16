@@ -108,3 +108,56 @@ func (s *CommonSuite) TestConform(c *gc.C) {
 		}
 	}
 }
+
+func (s *CommonSuite) TestTabbedString(c *gc.C) {
+	tests := []struct {
+		should    string
+		given     [][]string
+		sep       string
+		expected  string
+		errString string
+	}{{
+		should: "be empty with no args",
+		given:  [][]string{},
+	}, {
+		should:   "properly tab things out",
+		given:    [][]string{{"cat", "meow"}, {"dog", "woof"}},
+		sep:      " -- ",
+		expected: "cat\t -- meow\ndog\t -- woof",
+	}, {
+		should: "work for bigger strings",
+		given: [][]string{
+			{"something awfully long", "words"},
+			{"short", "more words"},
+		},
+		sep: " -- ",
+		expected: "something awfully long\t -- words\n" +
+			"short\t\t\t -- more words",
+	}, {
+		should:   "work with different first and sep",
+		given:    [][]string{{"a", "b"}},
+		sep:      ",",
+		expected: "a\t,b",
+	}, {
+		should:    "error on too many",
+		given:     [][]string{{"a", "b", "c"}},
+		sep:       " -- ",
+		errString: `row must have only two items, got \[\]string{"a", "b", "c"}`,
+	}, {
+		should:    "error on too few",
+		given:     [][]string{{"a"}},
+		sep:       " -- ",
+		errString: `row must have only two items, got \[\]string{"a"}`,
+	}}
+
+	for i, t := range tests {
+		c.Logf("test %d: should %s", i, t.should)
+		obtained, err := tabbedString(t.given, t.sep)
+		if t.errString != "" {
+			c.Check(err, gc.ErrorMatches, t.errString)
+		} else {
+			c.Assert(err, gc.IsNil)
+			c.Check(obtained, gc.Equals, t.expected)
+		}
+	}
+}
