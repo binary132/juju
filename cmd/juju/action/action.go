@@ -81,6 +81,10 @@ type APIClient interface {
 	// ServiceCharmActions is a single query which uses ServicesCharmActions to
 	// get the charm.Actions for a single Service by tag.
 	ServiceCharmActions(names.ServiceTag) (*charm.Actions, error)
+
+	// Actions fetches actions by ID.  These Actions can be used to get
+	// the ActionReceiver if necessary.
+	Actions(params.ActionUUIDs) (params.ActionResults, error)
 }
 
 // ActionCommandBase is the base type for action sub-commands.
