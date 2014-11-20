@@ -112,3 +112,7 @@ func (c *Client) ServiceCharmActions(arg params.Entity) (*charm.Actions, error) 
 	}
 	return result.Actions, nil
 }
+
+func (c *Client) Actions(args params.ActionUUIDs) (*params.Actions, error) {
+	return nil, errors.New("API endpoint not defined")
+}
