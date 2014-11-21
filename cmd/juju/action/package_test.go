@@ -5,6 +5,7 @@ package action_test
 
 import (
 	"testing"
+
 	"github.com/juju/juju/apiserver/params"
 	"github.com/juju/juju/cmd/envcmd"
 	"github.com/juju/juju/cmd/juju/action"
@@ -55,8 +56,8 @@ func (c *fakeAPIClient) Close() error {
 	return nil
 }
 
-func (c *fakeAPIClient) Actions(args params.ActionUUIDs) (*params.ActionResults, error) {
-	return &params.ActionResults{
+func (c *fakeAPIClient) Actions(args params.ActionUUIDs) (params.ActionResults, error) {
+	return params.ActionResults{
 		Results: c.actionResults,
 	}, c.apiErr
 }

@@ -84,7 +84,7 @@ type APIClient interface {
 
 	// Actions fetches actions by ID.  These Actions can be used to get
 	// the ActionReceiver if necessary.
-	Actions(params.ActionUUIDs) (*params.ActionResults, error)
+	Actions(params.ActionUUIDs) (params.ActionResults, error)
 }
 
 // ActionCommandBase is the base type for action sub-commands.
