@@ -38,11 +38,16 @@ func (s *BaseActionSuite) checkHelp(c *gc.C, subcmd envcmd.EnvironCommand) {
 	ctx, err := coretesting.RunCommand(c, s.command, subcmd.Info().Name, "--help")
 	c.Assert(err, gc.IsNil)
 
-	expected := "(?s).*^usage: juju action <command> .+"
+	expected := "(?sm).*^usage: juju action " +
+		subcmd.Info().Name + " " +
+		"\\[options\\] " +
+		subcmd.Info().Args + ".+"
 	c.Check(coretesting.Stdout(ctx), gc.Matches, expected)
-	expected = "(?sm).*^purpose: " + s.command.Purpose + "$.*"
+
+	expected = "(?sm).*^purpose: " + subcmd.Info().Purpose + "$.*"
 	c.Check(coretesting.Stdout(ctx), gc.Matches, expected)
-	expected = "(?sm).*^" + s.command.Doc + "$.*"
+
+	expected = "(?sm).*^" + subcmd.Info().Doc + "$.*"
 	c.Check(coretesting.Stdout(ctx), gc.Matches, expected)
 }
 
