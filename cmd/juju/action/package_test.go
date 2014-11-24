@@ -6,10 +6,12 @@ package action_test
 import (
 	"testing"
 
+	"github.com/juju/charm"
 	"github.com/juju/juju/apiserver/params"
 	"github.com/juju/juju/cmd/envcmd"
 	"github.com/juju/juju/cmd/juju/action"
 	coretesting "github.com/juju/juju/testing"
+	"github.com/juju/names"
 	jujutesting "github.com/juju/testing"
 	gc "gopkg.in/check.v1"
 )
@@ -53,15 +55,53 @@ func (s *BaseActionSuite) checkHelp(c *gc.C, subcmd envcmd.EnvironCommand) {
 
 type fakeAPIClient struct {
 	action.APIClient
-	actionResults []params.ActionResult
-	apiErr        error
+	actionResults      []params.ActionResult
+	actionsByReceivers []params.ActionsByReceiver
+	charmActions       *charm.Actions
+	apiErr             error
 }
 
 func (c *fakeAPIClient) Close() error {
 	return nil
 }
 
-func (c *fakeAPIClient) Actions(args params.ActionUUIDs) (params.ActionResults, error) {
+func (c *fakeAPIClient) Enqueue(params.Actions) (params.ActionResults, error) {
+	return params.ActionResults{
+		Results: c.actionResults,
+	}, c.apiErr
+}
+
+func (c *fakeAPIClient) ListAll(args params.Tags) (params.ActionsByReceivers, error) {
+	return params.ActionsByReceivers{
+		Actions: c.actionsByReceivers,
+	}, c.apiErr
+}
+
+func (c *fakeAPIClient) ListPending(args params.Tags) (params.ActionsByReceivers, error) {
+	return params.ActionsByReceivers{
+		Actions: c.actionsByReceivers,
+	}, c.apiErr
+}
+
+func (c *fakeAPIClient) ListCompleted(args params.Tags) (params.ActionsByReceivers, error) {
+	return params.ActionsByReceivers{
+		Actions: c.actionsByReceivers,
+	}, c.apiErr
+}
+
+func (c *fakeAPIClient) Cancel(args params.Actions) (params.ActionResults, error) {
+	return params.ActionResults{
+		Results: c.actionResults,
+	}, c.apiErr
+}
+
+func (c *fakeAPIClient) ServiceCharmActions(names.ServiceTag) (*charm.Actions, error) {
+	return params.ActionResults{
+		Results: c.charmActions,
+	}, c.apiErr
+}
+
+func (c *fakeAPIClient) Actions(args params.Tags) (params.ActionResults, error) {
 	return params.ActionResults{
 		Results: c.actionResults,
 	}, c.apiErr
