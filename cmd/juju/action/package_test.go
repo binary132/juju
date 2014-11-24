@@ -6,7 +6,6 @@ package action_test
 import (
 	"testing"
 
-	"github.com/juju/charm"
 	"github.com/juju/juju/apiserver/params"
 	"github.com/juju/juju/cmd/envcmd"
 	"github.com/juju/juju/cmd/juju/action"
@@ -14,6 +13,7 @@ import (
 	"github.com/juju/names"
 	jujutesting "github.com/juju/testing"
 	gc "gopkg.in/check.v1"
+	"gopkg.in/juju/charm.v4"
 )
 
 func TestPackage(t *testing.T) {
@@ -96,9 +96,7 @@ func (c *fakeAPIClient) Cancel(args params.Actions) (params.ActionResults, error
 }
 
 func (c *fakeAPIClient) ServiceCharmActions(names.ServiceTag) (*charm.Actions, error) {
-	return params.ActionResults{
-		Results: c.charmActions,
-	}, c.apiErr
+	return c.charmActions, c.apiErr
 }
 
 func (c *fakeAPIClient) Actions(args params.Tags) (params.ActionResults, error) {
