@@ -99,7 +99,7 @@ func (c *fakeAPIClient) ServiceCharmActions(names.ServiceTag) (*charm.Actions, e
 	return c.charmActions, c.apiErr
 }
 
-func (c *fakeAPIClient) Actions(args params.Tags) (params.ActionResults, error) {
+func (c *fakeAPIClient) Actions(args params.ActionUUIDs) (params.ActionResults, error) {
 	return params.ActionResults{
 		Results: c.actionResults,
 	}, c.apiErr
