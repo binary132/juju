@@ -84,7 +84,7 @@ type APIClient interface {
 
 	// Actions fetches actions by tag.  These Actions can be used to get
 	// the ActionReceiver if necessary.
-	Actions(params.Tags) (params.ActionResults, error)
+	Actions(params.ActionUUIDs) (params.ActionResults, error)
 }
 
 // ActionCommandBase is the base type for action sub-commands.
@@ -93,11 +93,11 @@ type ActionCommandBase struct {
 }
 
 // NewActionAPIClient returns a client for the action api endpoint.
-func (c *ActionCommandBase) NewActionAPIClient() (*action.Client, error) {
+func (c *ActionCommandBase) NewActionAPIClient() (APIClient, error) {
 	return newAPIClient(c)
 }
 
-var newAPIClient = func(c *ActionCommandBase) (*action.Client, error) {
+var newAPIClient = func(c *ActionCommandBase) (APIClient, error) {
 	root, err := c.NewAPIRoot()
 	if err != nil {
 		return nil, errors.Trace(err)
