@@ -18,11 +18,11 @@ import (
 
 const (
 	validActionId    = "service-name/0_a_0"
-	invalidActionId  = "-something-strange-"
+	invalidActionId  = "something-strange-"
 	validUnitId      = "mysql/0"
-	invalidUnitId    = "-something-strange-"
+	invalidUnitId    = "something-strange-"
 	validServiceId   = "mysql"
-	invalidServiceId = "-something-strange-"
+	invalidServiceId = "something-strange-"
 )
 
 func TestPackage(t *testing.T) {
