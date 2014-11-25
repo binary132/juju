@@ -24,7 +24,8 @@ type DoCommand struct {
 	unitTag      names.UnitTag
 	actionName   string
 	actionParams map[string]interface{}
-	ParamsYAML   cmd.FileVar
+	paramsYAML   cmd.FileVar
+	async        bool
 	out          cmd.Output
 	undefinedActionCommand
 }
@@ -65,7 +66,8 @@ func (c *DoCommand) SetFlags(f *gnuflag.FlagSet) {
 	c.out.AddFlags(f, "yaml", map[string]cmd.Formatter{
 		"yaml": cmd.FormatYaml,
 	})
-	f.Var(&c.ParamsYAML, "params", "path to yaml-formatted params file")
+	f.Var(&c.paramsYAML, "params", "path to yaml-formatted params file")
+	f.BoolVar(&c.async, "async", "run in the background")
 }
 
 func (c *DoCommand) Info() *cmd.Info {
@@ -112,8 +114,8 @@ func (c *DoCommand) Run(ctx *cmd.Context) error {
 
 	c.actionParams = map[string]interface{}{}
 
-	if c.ParamsYAML.Path != "" {
-		b, err := c.ParamsYAML.Read(ctx)
+	if c.paramsYAML.Path != "" {
+		b, err := c.paramsYAML.Read(ctx)
 		if err != nil {
 			return err
 		}
