@@ -16,6 +16,11 @@ import (
 	"gopkg.in/juju/charm.v4"
 )
 
+const (
+	validActionId   = "service-name/0_a_0"
+	invalidActionId = "12345"
+)
+
 func TestPackage(t *testing.T) {
 	gc.TestingT(t)
 }
