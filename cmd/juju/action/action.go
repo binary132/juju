@@ -63,17 +63,17 @@ type APIClient interface {
 	// ListAll takes a list of Tags representing ActionReceivers and returns
 	// all of the Actions that have been queued or run by each of those
 	// Entities.
-	ListAll(params.Tags) (params.ActionsByReceivers, error)
+	ListAll(params.Entities) (params.ActionsByReceivers, error)
 
 	// ListPending takes a list of Tags representing ActionReceivers
 	// and returns all of the Actions that are queued for each of those
 	// Entities.
-	ListPending(params.Tags) (params.ActionsByReceivers, error)
+	ListPending(params.Entities) (params.ActionsByReceivers, error)
 
 	// ListCompleted takes a list of Tags representing ActionReceivers
 	// and returns all of the Actions that have been run on each of those
 	// Entities.
-	ListCompleted(params.Tags) (params.ActionsByReceivers, error)
+	ListCompleted(params.Entities) (params.ActionsByReceivers, error)
 
 	// Cancel attempts to cancel a queued up Action from running.
 	Cancel(params.Actions) (params.ActionResults, error)
@@ -84,7 +84,7 @@ type APIClient interface {
 
 	// Actions fetches actions by tag.  These Actions can be used to get
 	// the ActionReceiver if necessary.
-	Actions(params.ActionUUIDs) (params.ActionResults, error)
+	Actions(params.Entities) (params.ActionResults, error)
 }
 
 // ActionCommandBase is the base type for action sub-commands.
