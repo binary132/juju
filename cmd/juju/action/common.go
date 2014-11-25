@@ -76,7 +76,7 @@ func displayActionResult(result params.ActionResult, ctx *cmd.Context, out cmd.O
 		"Status: %s\n"+
 		"Message: %s\n"+
 		"Results:\n%s",
-		result.Action.Name, result.Action.Receiver.String(),
+		result.Action.Name, result.Action.Receiver,
 		result.Status,
 		result.Message,
 		string(output))

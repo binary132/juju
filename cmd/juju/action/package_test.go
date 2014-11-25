@@ -71,19 +71,19 @@ func (c *fakeAPIClient) Enqueue(params.Actions) (params.ActionResults, error) {
 	}, c.apiErr
 }
 
-func (c *fakeAPIClient) ListAll(args params.Tags) (params.ActionsByReceivers, error) {
+func (c *fakeAPIClient) ListAll(args params.Entities) (params.ActionsByReceivers, error) {
 	return params.ActionsByReceivers{
 		Actions: c.actionsByReceivers,
 	}, c.apiErr
 }
 
-func (c *fakeAPIClient) ListPending(args params.Tags) (params.ActionsByReceivers, error) {
+func (c *fakeAPIClient) ListPending(args params.Entities) (params.ActionsByReceivers, error) {
 	return params.ActionsByReceivers{
 		Actions: c.actionsByReceivers,
 	}, c.apiErr
 }
 
-func (c *fakeAPIClient) ListCompleted(args params.Tags) (params.ActionsByReceivers, error) {
+func (c *fakeAPIClient) ListCompleted(args params.Entities) (params.ActionsByReceivers, error) {
 	return params.ActionsByReceivers{
 		Actions: c.actionsByReceivers,
 	}, c.apiErr
@@ -99,7 +99,7 @@ func (c *fakeAPIClient) ServiceCharmActions(names.ServiceTag) (*charm.Actions, e
 	return c.charmActions, c.apiErr
 }
 
-func (c *fakeAPIClient) Actions(args params.ActionUUIDs) (params.ActionResults, error) {
+func (c *fakeAPIClient) Actions(args params.Entities) (params.ActionResults, error) {
 	return params.ActionResults{
 		Results: c.actionResults,
 	}, c.apiErr
