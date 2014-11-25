@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"time"
 
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v1"
 
 	"github.com/juju/cmd"
 	"github.com/juju/errors"
@@ -135,7 +135,7 @@ func (c *DoCommand) Run(ctx *cmd.Context) error {
 
 	actionParam := params.Actions{
 		Actions: []params.Action{{
-			Receiver:   c.unitTag,
+			Receiver:   c.unitTag.String(),
 			Name:       c.actionName,
 			Parameters: c.actionParams,
 		}},
@@ -155,17 +155,19 @@ func (c *DoCommand) Run(ctx *cmd.Context) error {
 	}
 
 	tag := result.Results[0].Action.Tag
-	if !names.IsValidAction(tag.Id()) {
-		return errors.Errorf("invalid action tag %q received", tag.String())
+	if !names.IsValidAction(tag) {
+		return errors.Errorf("invalid action tag %q received", tag)
 	}
 
-	err = c.out.Write(ctx, fmt.Sprintf("Action queued with id: %#v", tag.String()))
+	err = c.out.Write(ctx, fmt.Sprintf("Action queued with id: %#v", tag))
 	if err != nil {
 		return err
 	}
 
 	for _ = range time.Tick(1 * time.Second) {
-		completed, err := api.ListCompleted(params.Tags{Tags: []names.Tag{c.unitTag}})
+		completed, err := api.ListCompleted(params.Entities{
+			Entities: []params.Entity{{c.unitTag.String()}},
+		})
 		if err != nil {
 			return err
 		}
