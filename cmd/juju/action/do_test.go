@@ -1,4 +1,4 @@
-// Copyright 2012-2014 Canonical Ltd.
+// Copyright 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 package action_test
@@ -12,22 +12,22 @@ import (
 	gc "gopkg.in/check.v1"
 )
 
-type FetchSuite struct {
+type DoSuite struct {
 	BaseActionSuite
-	subcommand *action.FetchCommand
+	subcommand *action.DoCommand
 }
 
-var _ = gc.Suite(&FetchSuite{})
+var _ = gc.Suite(&DoSuite{})
 
-func (s *FetchSuite) SetUpTest(c *gc.C) {
+func (s *DoSuite) SetUpTest(c *gc.C) {
 	s.BaseActionSuite.SetUpTest(c)
 }
 
-func (s *FetchSuite) TestHelp(c *gc.C) {
+func (s *DoSuite) TestHelp(c *gc.C) {
 	s.checkHelp(c, s.subcommand)
 }
 
-func (s *FetchSuite) TestInit(c *gc.C) {
+func (s *DoSuite) TestInit(c *gc.C) {
 	tests := []struct {
 		should               string
 		args                 []string
@@ -40,42 +40,48 @@ func (s *FetchSuite) TestInit(c *gc.C) {
 	}{{
 		should:      "fail with missing args",
 		args:        []string{},
-		expectError: "no action UUID specified",
+		expectError: "no unit specified",
 	}, {
 		should:      "fail with no action specified",
 		args:        []string{validUnitId},
 		expectError: "no action specified",
 	}, {
 		should:      "fail with invalid unit tag",
-		args:        []string{invalidUnitId},
-		expectError: "invalid unit name \"poop\"",
+		args:        []string{invalidUnitId, "valid-action-name"},
+		expectError: "invalid unit name \"something-strange-\"",
 	}, {
 		should:      "fail with invalid action name",
 		args:        []string{validUnitId, "BadName"},
-		expectError: "oops poops",
+		expectError: "invalid action name \"BadName\"",
 	}, {
 		should:      "fail with too many args",
 		args:        []string{"1", "2", "3"},
-		expectError: "too many poops",
+		expectError: "unrecognized args: \\[\"2\" \"3\"\\]",
 	}, {
 		should:       "init properly with no params",
 		args:         []string{validUnitId, "valid-action-name"},
 		expectUnit:   names.NewUnitTag(validUnitId),
 		expectAction: "valid-action-name",
 	}, {
-		should:      "handle --async properly",
-		args:        []string{"--async", validUnitId, "valid-action-name"},
-		expectAsync: true,
+		should:       "handle --async properly",
+		args:         []string{"--async", validUnitId, "valid-action-name"},
+		expectAsync:  true,
+		expectUnit:   names.NewUnitTag(validUnitId),
+		expectAction: "valid-action-name",
 	}, {
-		should:      "handle --params properly",
-		args:        []string{"--async", validUnitId, "valid-action-name"},
-		expectAsync: true,
+		should:       "handle --params properly",
+		args:         []string{"--async", validUnitId, "valid-action-name"},
+		expectAsync:  true,
+		expectUnit:   names.NewUnitTag(validUnitId),
+		expectAction: "valid-action-name",
 	}, {
 		should: "handle both --params and --async properly",
 		args: []string{"--async", "--params=somefile.yaml",
 			validUnitId, "valid-action-name"},
 		expectAsync:          true,
 		expectParamsYamlPath: "somefile.yaml",
+		expectUnit:           names.NewUnitTag(validUnitId),
+		expectAction:         "valid-action-name",
 	}}
 
 	for i, t := range tests {

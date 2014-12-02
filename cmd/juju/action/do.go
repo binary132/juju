@@ -67,7 +67,7 @@ func (c *DoCommand) SetFlags(f *gnuflag.FlagSet) {
 		"yaml": cmd.FormatYaml,
 	})
 	f.Var(&c.paramsYAML, "params", "path to yaml-formatted params file")
-	f.BoolVar(&c.async, "async", "run in the background")
+	f.BoolVar(&c.async, "async", false, "run in the background")
 }
 
 func (c *DoCommand) Info() *cmd.Info {
