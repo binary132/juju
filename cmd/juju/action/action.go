@@ -11,7 +11,6 @@ import (
 	"github.com/juju/juju/api/action"
 	"github.com/juju/juju/apiserver/params"
 	"github.com/juju/juju/cmd/envcmd"
-	"github.com/juju/names"
 	"gopkg.in/juju/charm.v4"
 )
 
@@ -80,7 +79,7 @@ type APIClient interface {
 
 	// ServiceCharmActions is a single query which uses ServicesCharmActions to
 	// get the charm.Actions for a single Service by tag.
-	ServiceCharmActions(names.ServiceTag) (*charm.Actions, error)
+	ServiceCharmActions(params.Entity) (*charm.Actions, error)
 
 	// Actions fetches actions by tag.  These Actions can be used to get
 	// the ActionReceiver if necessary.
