@@ -112,8 +112,3 @@ func (c *Client) ServiceCharmActions(arg params.Entity) (*charm.Actions, error) 
 	}
 	return result.Actions, nil
 }
-
-func (c *Client) Actions(args params.Entities) (params.ActionResults, error) {
-	none := params.ActionResults{}
-	return none, errors.New("API endpoint not defined")
-}

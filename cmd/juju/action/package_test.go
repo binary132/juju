@@ -10,7 +10,6 @@ import (
 	"github.com/juju/juju/cmd/envcmd"
 	"github.com/juju/juju/cmd/juju/action"
 	coretesting "github.com/juju/juju/testing"
-	"github.com/juju/names"
 	jujutesting "github.com/juju/testing"
 	gc "gopkg.in/check.v1"
 	"gopkg.in/juju/charm.v4"
@@ -104,7 +103,7 @@ func (c *fakeAPIClient) Cancel(args params.Actions) (params.ActionResults, error
 	}, c.apiErr
 }
 
-func (c *fakeAPIClient) ServiceCharmActions(names.ServiceTag) (*charm.Actions, error) {
+func (c *fakeAPIClient) ServiceCharmActions(params.Entity) (*charm.Actions, error) {
 	return c.charmActions, c.apiErr
 }
 
