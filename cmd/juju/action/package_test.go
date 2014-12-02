@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	validActionId    = "service-name/0_a_0"
-	invalidActionId  = "something-strange-"
+	validActionId    = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+	invalidActionId  = "f47ac10b-58cc-4372-a567-0e02b2c3d47"
 	validUnitId      = "mysql/0"
 	invalidUnitId    = "something-strange-"
 	validServiceId   = "mysql"
@@ -65,6 +65,7 @@ type fakeAPIClient struct {
 	action.APIClient
 	actionResults      []params.ActionResult
 	actionsByReceivers []params.ActionsByReceiver
+	actionTagMatches   map[string][]params.Entity
 	charmActions       *charm.Actions
 	apiErr             error
 }
@@ -110,5 +111,11 @@ func (c *fakeAPIClient) ServiceCharmActions(params.Entity) (*charm.Actions, erro
 func (c *fakeAPIClient) Actions(args params.Entities) (params.ActionResults, error) {
 	return params.ActionResults{
 		Results: c.actionResults,
+	}, c.apiErr
+}
+
+func (c *fakeAPIClient) FindActionTagsByPrefix(arg params.FindTags) (params.FindTagsResults, error) {
+	return params.FindTagsResults{
+		Matches: c.actionTagMatches,
 	}, c.apiErr
 }
