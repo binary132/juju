@@ -4,6 +4,7 @@
 package action_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/juju/juju/apiserver/params"
@@ -23,6 +24,29 @@ const (
 	validServiceId   = "mysql"
 	invalidServiceId = "something-strange-"
 )
+
+var someCharmActions = &charm.Actions{
+	ActionSpecs: map[string]charm.ActionSpec{
+		"snapshot": charm.ActionSpec{
+			Description: "Take a snapshot of the database.",
+			Params: map[string]interface{}{
+				"foo": map[string]interface{}{
+					"bar": "baz",
+				},
+				"baz": "bar",
+			},
+		},
+		"kill": charm.ActionSpec{
+			Description: "Kill the database.",
+			Params: map[string]interface{}{
+				"bar": map[string]interface{}{
+					"baz": "foo",
+				},
+				"foo": "baz",
+			},
+		},
+	},
+}
 
 func TestPackage(t *testing.T) {
 	gc.TestingT(t)
@@ -51,7 +75,7 @@ func (s *BaseActionSuite) checkHelp(c *gc.C, subcmd envcmd.EnvironCommand) {
 	expected := "(?sm).*^usage: juju action " +
 		subcmd.Info().Name + " " +
 		"\\[options\\] " +
-		subcmd.Info().Args + ".+"
+		regexp.QuoteMeta(subcmd.Info().Args) + ".+"
 	c.Check(coretesting.Stdout(ctx), gc.Matches, expected)
 
 	expected = "(?sm).*^purpose: " + subcmd.Info().Purpose + "$.*"
