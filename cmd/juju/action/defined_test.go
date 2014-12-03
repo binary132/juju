@@ -83,6 +83,8 @@ func (s *DefinedSuite) TestRun(c *gc.C) {
 	tests := []struct {
 		should           string
 		expectFullSchema bool
+		expectNoResults  bool
+		expectMessage    string
 		withArgs         []string
 		withAPIErr       string
 		withCharmActions *charm.Actions
@@ -101,6 +103,12 @@ func (s *DefinedSuite) TestRun(c *gc.C) {
 		withArgs:         []string{"--schema", validServiceId},
 		expectFullSchema: true,
 		withCharmActions: someCharmActions,
+	}, {
+		should:           "work properly when no results found",
+		withArgs:         []string{validServiceId},
+		expectNoResults:  true,
+		expectMessage:    "No actions defined for " + validServiceId,
+		withCharmActions: &charm.Actions{ActionSpecs: map[string]charm.ActionSpec{}},
 	}}
 
 	for i, t := range tests {
@@ -124,6 +132,8 @@ func (s *DefinedSuite) TestRun(c *gc.C) {
 				result := ctx.Stdout.(*bytes.Buffer).String()
 				if t.expectFullSchema {
 					checkFullSchema(c, t.withCharmActions, result)
+				} else if t.expectNoResults {
+					c.Check(result, gc.Matches, t.expectMessage+"(?sm).*")
 				} else {
 					checkTabbedSchema(c, t.withCharmActions, result)
 				}

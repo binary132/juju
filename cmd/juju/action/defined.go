@@ -87,6 +87,7 @@ func (c *DefinedCommand) Run(ctx *cmd.Context) error {
 		}
 		output, err := tabbedString(tabbedResults, " -- ")
 		if err != nil {
+			// This will never occur with this usage.  len(tabbedResults) == 2
 			return errors.Wrap(err, errors.New("action formatting failed"))
 		}
 		return c.out.Write(ctx, output)
