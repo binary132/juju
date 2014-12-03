@@ -73,15 +73,15 @@ func (s *BaseActionSuite) checkHelp(c *gc.C, subcmd envcmd.EnvironCommand) {
 	c.Assert(err, gc.IsNil)
 
 	expected := "(?sm).*^usage: juju action " +
-		subcmd.Info().Name + " " +
+		regexp.QuoteMeta(subcmd.Info().Name) + " " +
 		"\\[options\\] " +
 		regexp.QuoteMeta(subcmd.Info().Args) + ".+"
 	c.Check(coretesting.Stdout(ctx), gc.Matches, expected)
 
-	expected = "(?sm).*^purpose: " + subcmd.Info().Purpose + "$.*"
+	expected = "(?sm).*^purpose: " + regexp.QuoteMeta(subcmd.Info().Purpose) + "$.*"
 	c.Check(coretesting.Stdout(ctx), gc.Matches, expected)
 
-	expected = "(?sm).*^" + subcmd.Info().Doc + "$.*"
+	expected = "(?sm).*^" + regexp.QuoteMeta(subcmd.Info().Doc) + "$.*"
 	c.Check(coretesting.Stdout(ctx), gc.Matches, expected)
 }
 
