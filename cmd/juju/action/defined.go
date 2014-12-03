@@ -6,6 +6,7 @@ package action
 import (
 	"github.com/juju/cmd"
 	errors "github.com/juju/errors"
+	"github.com/juju/juju/apiserver/params"
 	"github.com/juju/names"
 	"launchpad.net/gnuflag"
 )
@@ -13,7 +14,7 @@ import (
 // DefinedCommand lists actions defined by the charm of a given service.
 type DefinedCommand struct {
 	ActionCommandBase
-	serviceTag names.serviceTag
+	serviceTag names.ServiceTag
 	fullSchema bool
 	out        cmd.Output
 }
@@ -53,7 +54,7 @@ func (c *DefinedCommand) Init(args []string) error {
 		if !names.IsValidService(svcName) {
 			return errors.Errorf("invalid service name %q", svcName)
 		}
-		c.serviceTag = names.NewserviceTag(svcName)
+		c.serviceTag = names.NewServiceTag(svcName)
 		return nil
 	default:
 		return cmd.CheckEmpty(args[1:])
@@ -69,22 +70,22 @@ func (c *DefinedCommand) Run(ctx *cmd.Context) error {
 	}
 	defer api.Close()
 
-	actions, err := api.ServiceCharmActions(c.serviceTag)
+	actions, err := api.ServiceCharmActions(params.Entity{c.serviceTag.String()})
 	if err != nil {
 		return err
 	}
 	actionSpecs := actions.ActionSpecs
-	numActionSpecs := len(actions.ActionSpecs)
+	numActionSpecs := len(actionSpecs)
 	if numActionSpecs == 0 {
-		return c.out.Write(ctx, "No actions defined for %s", c.serviceTag)
+		return c.out.Write(ctx, "No actions defined for "+c.serviceTag.Id())
 	}
 
 	if !c.fullSchema {
 		tabbedResults := [][]string{}
-		for name, spec := range actionSpecs.ActionSpecs {
+		for name, spec := range actionSpecs {
 			tabbedResults = append(tabbedResults, []string{name, spec.Description})
 		}
-		output, err := writeTabbedString(tabbedResults)
+		output, err := tabbedString(tabbedResults, " -- ")
 		if err != nil {
 			return errors.Wrap(err, errors.New("action formatting failed"))
 		}

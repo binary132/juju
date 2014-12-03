@@ -1,18 +1,22 @@
-// Copyright 2012-2014 Canonical Ltd.
+// Copyright 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 package action_test
 
 import (
 	"bytes"
+	"errors"
+	"sort"
 	"strings"
 
 	"github.com/juju/juju/cmd/juju/action"
 	"github.com/juju/juju/state"
 	"github.com/juju/juju/testing"
+	"github.com/juju/names"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/juju/charm.v4"
+	"gopkg.in/yaml.v1"
 )
 
 type DefinedSuite struct {
@@ -25,7 +29,6 @@ var _ = gc.Suite(&DefinedSuite{})
 
 func (s *DefinedSuite) SetUpTest(c *gc.C) {
 	s.BaseActionSuite.SetUpTest(c)
-	s.subcommand = &action.DefinedCommand{}
 }
 
 func (s *DefinedSuite) TestHelp(c *gc.C) {
@@ -34,99 +37,146 @@ func (s *DefinedSuite) TestHelp(c *gc.C) {
 
 func (s *DefinedSuite) TestInit(c *gc.C) {
 	tests := []struct {
-		should       string
-		args         []string
-		svcTag       names.Service
-		outputSchema bool
-		errorString  string
+		should               string
+		args                 []string
+		expectedSvc          names.ServiceTag
+		expectedOutputSchema bool
+		expectedErr          string
 	}{{
 		should:      "fail with missing service name",
 		args:        []string{},
-		errorString: "no service name specified",
+		expectedErr: "no service name specified",
 	}, {
 		should:      "fail with invalid service name",
-		args:        []string{"derp/0"},
-		errorString: "invalid service name \"derp\"",
+		args:        []string{invalidServiceId},
+		expectedErr: "invalid service name \"" + invalidServiceId + "\"",
 	}, {
-		should: "init properly with valid service name",
-		args:   []string{"mysql"},
-		svcTag: names.NewServiceTag("mysql"),
+		should:      "fail with too many args",
+		args:        []string{"two", "things"},
+		expectedErr: "unrecognized args: \\[\"things\"\\]",
 	}, {
-		should:       "init properly with valid service name and --schema",
-		args:         []string{"--schema", "mysql"},
-		outputSchema: true,
-		svcTag:       names.NewServiceTag("mysql"),
+		should:      "init properly with valid service name",
+		args:        []string{validServiceId},
+		expectedSvc: names.NewServiceTag(validServiceId),
+	}, {
+		should:               "init properly with valid service name and --schema",
+		args:                 []string{"--schema", validServiceId},
+		expectedOutputSchema: true,
+		expectedSvc:          names.NewServiceTag(validServiceId),
 	}}
 
-	for i, test := range tests {
+	for i, t := range tests {
 		c.Logf("test %d should %s: juju actions defined %s", i,
-			t.should, strings.Join(args, " "))
+			t.should, strings.Join(t.args, " "))
+		s.subcommand = &action.DefinedCommand{}
 		err := testing.InitCommand(s.subcommand, t.args)
-		if test.ErrorString == "" {
-			c.Check(definedCmd.ServiceTag, gc.Equals, t.svcTag)
-			c.Check(definedCmd.fullSchema, gc.Equals, t.outputSchema)
+		if t.expectedErr == "" {
+			c.Check(s.subcommand.ServiceTag(), gc.Equals, t.expectedSvc)
+			c.Check(s.subcommand.FullSchema(), gc.Equals, t.expectedOutputSchema)
 		} else {
-			c.Check(err, gc.ErrorMatches, t.errorString)
+			c.Check(err, gc.ErrorMatches, t.expectedErr)
 		}
 	}
 }
 
 func (s *DefinedSuite) TestRun(c *gc.C) {
 	tests := []struct {
-		args            []string
-		expectedResults map[string]interface{}
-		expectedErr     string
+		should           string
+		expectFullSchema bool
+		withArgs         []string
+		withAPIErr       string
+		withCharmActions *charm.Actions
+		expectedErr      string
 	}{{
-		args:            []string{},
-		expectedErr:     "error: no service name specified\n",
-		expectedResults: map[string]interface{}{},
+		should:      "pass back API error correctly",
+		withArgs:    []string{validServiceId},
+		withAPIErr:  "an API error",
+		expectedErr: "an API error",
 	}, {
-		args: []string{"dummy"},
-		expectedResults: map[string]interface{}{
-			"snapshot": map[string]interface{}{
-				"description": "Take a snapshot of the database.",
-				"params": map[string]interface{}{
-					"type": "object",
-					"outfile": map[string]interface{}{
-						"default":     "foo.bz2",
-						"type":        "string",
-						"description": "The file to write out to.",
-					},
-				},
-			},
-		},
+		should:           "get tabbed results properly",
+		withArgs:         []string{validServiceId},
+		withCharmActions: someCharmActions,
 	}, {
-		args:            []string{"dne"},
-		expectedErr:     "error: service \"dne\" not found\n",
-		expectedResults: map[string]interface{}{},
-	}, {
-		args:            []string{"two", "things"},
-		expectedErr:     "error: unrecognized args: [\"things\"]\n",
-		expectedResults: map[string]interface{}{},
-	}, {
-		args:            []string{"dummy", "things"},
-		expectedErr:     "error: unrecognized args: [\"things\"]\n",
-		expectedResults: map[string]interface{}{},
+		should:           "get full schema results properly",
+		withArgs:         []string{"--schema", validServiceId},
+		expectFullSchema: true,
+		withCharmActions: someCharmActions,
 	}}
 
-	ch := s.AddTestingCharm(c, "dummy")
-	svc := s.AddTestingService(c, "dummy", ch)
-	s.svc = svc
-
 	for i, t := range tests {
-		c.Logf("test %d: %#v", i, t.args)
-		args := append(s.subcommand.Name, t.args)
-		ctx, err := testing.RunCommand(c, s.command, args)
-		c.Assert(err, gc.IsNil)
-		buf, err := yaml.Marshal(t.expectedResults)
-		s.checkStd(c, ctx, t.buf, t.expectedErr)
-		// wip
-		expected := make(map[string]interface{})
-		err = yaml.Unmarshal(buf, &expected)
-		c.Assert(err, gc.IsNil)
-		actual := make(map[string]interface{})
-		err = yaml.Unmarshal(ctx.Stdout.(*bytes.Buffer).Bytes(), &actual)
-		c.Assert(err, gc.IsNil)
-		c.Check(actual, jc.DeepEquals, expected)
+		func() {
+			c.Logf("test %d should %s", i, t.should)
+
+			fakeClient := &fakeAPIClient{charmActions: t.withCharmActions}
+			if t.withAPIErr != "" {
+				fakeClient.apiErr = errors.New(t.withAPIErr)
+			}
+			restore := s.patchAPIClient(fakeClient)
+			defer restore()
+
+			s.subcommand = &action.DefinedCommand{}
+			ctx, err := testing.RunCommand(c, s.subcommand, t.withArgs...)
+
+			if t.expectedErr != "" || t.withAPIErr != "" {
+				c.Check(err, gc.ErrorMatches, t.expectedErr)
+			} else {
+				c.Assert(err, gc.IsNil)
+				result := ctx.Stdout.(*bytes.Buffer).String()
+				if t.expectFullSchema {
+					checkFullSchema(c, t.withCharmActions, result)
+				} else {
+					checkTabbedSchema(c, t.withCharmActions, result)
+				}
+			}
+		}()
 	}
+}
+
+func checkFullSchema(c *gc.C, expected *charm.Actions, actual string) {
+	expectYaml, err := yaml.Marshal(expected.ActionSpecs)
+	c.Assert(err, gc.IsNil)
+	// unmarshal and re-marshal to make sure we have same format
+	unmarshaledActual := map[string]interface{}{}
+	err = yaml.Unmarshal([]byte(actual), &unmarshaledActual)
+	c.Assert(err, gc.IsNil)
+	actualResult, err := yaml.Marshal(unmarshaledActual)
+	c.Assert(err, gc.IsNil)
+	c.Check(string(actualResult), gc.Equals, string(expectYaml))
+}
+
+type actionSpecs [][]string
+
+func (slice actionSpecs) Len() int {
+	return len(slice)
+}
+
+func (slice actionSpecs) Less(i, j int) bool {
+	return slice[i][0] < slice[j][0]
+}
+
+func (slice actionSpecs) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func checkTabbedSchema(c *gc.C, expected *charm.Actions, actual string) {
+	strippedActual := strings.Trim(actual, "\"\n")
+	strippedActual = strings.Replace(strippedActual, "\\t", "", -1)
+	resultLines := strings.Split(strippedActual, "\\n")
+	specs := expected.ActionSpecs
+	c.Assert(len(resultLines), gc.Equals, len(specs))
+	resultLinesToMatch := make([][]string, len(resultLines))
+	expectedLinesToMatch := make([][]string, len(specs))
+	for i, line := range resultLines {
+		resultLinesToMatch[i] = strings.Split(line, " -- ")
+	}
+	i := 0
+	for name, spec := range specs {
+		expectedLinesToMatch[i] = []string{name, spec.Description}
+		i++
+	}
+
+	sort.Sort(actionSpecs(resultLinesToMatch))
+	sort.Sort(actionSpecs(expectedLinesToMatch))
+
+	c.Check(resultLinesToMatch, jc.DeepEquals, expectedLinesToMatch)
 }
