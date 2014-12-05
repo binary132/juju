@@ -20,12 +20,11 @@ import (
 // params
 type DoCommand struct {
 	ActionCommandBase
-	unitTag      names.UnitTag
-	actionName   string
-	actionParams map[string]interface{}
-	paramsYAML   cmd.FileVar
-	async        bool
-	out          cmd.Output
+	unitTag    names.UnitTag
+	actionName string
+	paramsYAML cmd.FileVar
+	async      bool
+	out        cmd.Output
 	undefinedActionCommand
 }
 
@@ -61,10 +60,7 @@ $ juju do mysql/3 backup --async --params parameters.yml
 
 // SetFlags offers an option for YAML output.
 func (c *DoCommand) SetFlags(f *gnuflag.FlagSet) {
-	// TODO(binary132) add json output?
-	c.out.AddFlags(f, "yaml", map[string]cmd.Formatter{
-		"yaml": cmd.FormatYaml,
-	})
+	c.out.AddFlags(f, "smart", cmd.DefaultFormatters)
 	f.Var(&c.paramsYAML, "params", "path to yaml-formatted params file")
 	f.BoolVar(&c.async, "async", false, "run in the background")
 }
@@ -111,7 +107,7 @@ func (c *DoCommand) Run(ctx *cmd.Context) error {
 	}
 	defer api.Close()
 
-	c.actionParams = map[string]interface{}{}
+	actionParams := map[string]interface{}{}
 
 	if c.paramsYAML.Path != "" {
 		b, err := c.paramsYAML.Read(ctx)
@@ -119,9 +115,9 @@ func (c *DoCommand) Run(ctx *cmd.Context) error {
 			return err
 		}
 
-		err = yaml.Unmarshal(b, &c.actionParams)
+		err = yaml.Unmarshal(b, &actionParams)
 
-		conformantParams, err := conform(c.actionParams)
+		conformantParams, err := conform(actionParams)
 		if err != nil {
 			return err
 		}
@@ -131,14 +127,14 @@ func (c *DoCommand) Run(ctx *cmd.Context) error {
 			return errors.New("params must contain a YAML map with string keys")
 		}
 
-		c.actionParams = betterParams
+		actionParams = betterParams
 	}
 
 	actionParam := params.Actions{
 		Actions: []params.Action{{
 			Receiver:   c.unitTag.String(),
 			Name:       c.actionName,
-			Parameters: c.actionParams,
+			Parameters: actionParams,
 		}},
 	}
 
@@ -147,59 +143,62 @@ func (c *DoCommand) Run(ctx *cmd.Context) error {
 		return err
 	}
 	if len(results.Results) != 1 {
-		return errors.New("only one results must be received")
+		return errors.New("only one result must be received")
 	}
 
 	result := results.Results[0]
-	err = result.Error
-	if err != nil {
-		return err
+
+	if result.Error != nil {
+		return result.Error
 	}
 
 	if result.Action == nil {
 		return errors.New("action failed to enqueue")
 	}
 
-	tag := result.Action.Tag
-	if !names.IsValidAction(tag) {
-		return errors.Errorf("invalid action tag %q received", tag)
+	tag, err := names.ParseActionTag(result.Action.Tag)
+	if err != nil {
+		return err
 	}
 
-	return c.out.Write(ctx, map[string]string{"Action queued with id": tag})
-	// err = c.out.Write(ctx, map[string]string{"Action queued with id": tag})
-	// if err != nil {
-	// 	return err
-	// }
-
-	// for _ = range time.Tick(1 * time.Second) {
-	// 	completed, err := api.ListCompleted(params.Entities{
-	// 		Entities: []params.Entity{{c.unitTag.String()}},
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	if len(completed.Actions) != 1 {
-	// 		return errors.New("only one result must be received")
-	// 	}
-	// 	err = completed.Actions[0].Error
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	results := completed.Actions[0].Actions
-	// 	if len(results) == 0 {
-	// 		continue
-	// 	}
-	// 	if len(results) > 1 {
-	// 		return errors.New("too many action results")
-	// 	}
-
-	// 	err = displayActionResult(results[0], ctx, c.out)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-
-	// return nil
+	output := map[string]string{"Action queued with id": tag.Id()}
+	return c.out.Write(ctx, output)
 }
+
+// err = c.out.Write(ctx, map[string]string{"Action queued with id": tag})
+// if err != nil {
+// 	return err
+// }
+
+// for _ = range time.Tick(1 * time.Second) {
+// 	completed, err := api.ListCompleted(params.Entities{
+// 		Entities: []params.Entity{{c.unitTag.String()}},
+// 	})
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	if len(completed.Actions) != 1 {
+// 		return errors.New("only one result must be received")
+// 	}
+// 	err = completed.Actions[0].Error
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	results := completed.Actions[0].Actions
+// 	if len(results) == 0 {
+// 		continue
+// 	}
+// 	if len(results) > 1 {
+// 		return errors.New("too many action results")
+// 	}
+
+// 	err = displayActionResult(results[0], ctx, c.out)
+// 	if err != nil {
+// 		return err
+// 	}
+// }
+
+// return nil
+//}

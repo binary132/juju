@@ -29,10 +29,6 @@ func (c *DoCommand) ActionName() string {
 	return c.actionName
 }
 
-func (c *DoCommand) ActionParams() map[string]interface{} {
-	return c.actionParams
-}
-
 func (c *DoCommand) ParamsYAMLPath() string {
 	return c.paramsYAML.Path
 }
