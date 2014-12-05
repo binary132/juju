@@ -19,7 +19,7 @@ var actionDoc = `
 and retrieves their results.
 `
 
-const actionPurpose = "execute, manage, monitor, and retrieve results of actions."
+var actionPurpose = "execute, manage, monitor, and retrieve results of actions"
 
 // Command is the top-level command wrapping all action functionality.
 type ActionCommand struct {
