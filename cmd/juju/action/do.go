@@ -6,7 +6,6 @@ package action
 import (
 	"fmt"
 	"regexp"
-	"time"
 
 	yaml "gopkg.in/yaml.v1"
 
@@ -143,58 +142,64 @@ func (c *DoCommand) Run(ctx *cmd.Context) error {
 		}},
 	}
 
-	result, err := api.Enqueue(actionParam)
+	results, err := api.Enqueue(actionParam)
 	if err != nil {
 		return err
 	}
-	if len(result.Results) != 1 {
-		return errors.New("only one result must be received")
+	if len(results.Results) != 1 {
+		return errors.New("only one results must be received")
 	}
 
-	err = result.Results[0].Error
+	result := results.Results[0]
+	err = result.Error
 	if err != nil {
 		return err
 	}
 
-	tag := result.Results[0].Action.Tag
+	if result.Action == nil {
+		return errors.New("action failed to enqueue")
+	}
+
+	tag := result.Action.Tag
 	if !names.IsValidAction(tag) {
 		return errors.Errorf("invalid action tag %q received", tag)
 	}
 
-	err = c.out.Write(ctx, fmt.Sprintf("Action queued with id: %#v", tag))
-	if err != nil {
-		return err
-	}
+	return c.out.Write(ctx, map[string]string{"Action queued with id": tag})
+	// err = c.out.Write(ctx, map[string]string{"Action queued with id": tag})
+	// if err != nil {
+	// 	return err
+	// }
 
-	for _ = range time.Tick(1 * time.Second) {
-		completed, err := api.ListCompleted(params.Entities{
-			Entities: []params.Entity{{c.unitTag.String()}},
-		})
-		if err != nil {
-			return err
-		}
+	// for _ = range time.Tick(1 * time.Second) {
+	// 	completed, err := api.ListCompleted(params.Entities{
+	// 		Entities: []params.Entity{{c.unitTag.String()}},
+	// 	})
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		if len(completed.Actions) != 1 {
-			return errors.New("only one result must be received")
-		}
-		err = completed.Actions[0].Error
-		if err != nil {
-			return err
-		}
+	// 	if len(completed.Actions) != 1 {
+	// 		return errors.New("only one result must be received")
+	// 	}
+	// 	err = completed.Actions[0].Error
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		results := completed.Actions[0].Actions
-		if len(results) == 0 {
-			continue
-		}
-		if len(results) > 1 {
-			return errors.New("too many action results")
-		}
+	// 	results := completed.Actions[0].Actions
+	// 	if len(results) == 0 {
+	// 		continue
+	// 	}
+	// 	if len(results) > 1 {
+	// 		return errors.New("too many action results")
+	// 	}
 
-		err = displayActionResult(results[0], ctx, c.out)
-		if err != nil {
-			return err
-		}
-	}
+	// 	err = displayActionResult(results[0], ctx, c.out)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 
-	return nil
+	// return nil
 }
