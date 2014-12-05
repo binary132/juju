@@ -6,7 +6,6 @@ package action_test
 import (
 	"bytes"
 	"errors"
-	"sort"
 	"strings"
 
 	"github.com/juju/juju/cmd/juju/action"
@@ -95,7 +94,7 @@ func (s *DefinedSuite) TestRun(c *gc.C) {
 		withAPIErr:  "an API error",
 		expectedErr: "an API error",
 	}, {
-		should:           "get tabbed results properly",
+		should:           "get short results properly",
 		withArgs:         []string{validServiceId},
 		withCharmActions: someCharmActions,
 	}, {
@@ -129,20 +128,20 @@ func (s *DefinedSuite) TestRun(c *gc.C) {
 				c.Check(err, gc.ErrorMatches, t.expectedErr)
 			} else {
 				c.Assert(err, gc.IsNil)
-				result := ctx.Stdout.(*bytes.Buffer).String()
+				result := ctx.Stdout.(*bytes.Buffer).Bytes()
 				if t.expectFullSchema {
 					checkFullSchema(c, t.withCharmActions, result)
 				} else if t.expectNoResults {
-					c.Check(result, gc.Matches, t.expectMessage+"(?sm).*")
+					c.Check(string(result), gc.Matches, t.expectMessage+"(?sm).*")
 				} else {
-					checkTabbedSchema(c, t.withCharmActions, result)
+					checkSimpleSchema(c, t.withCharmActions, result)
 				}
 			}
 		}()
 	}
 }
 
-func checkFullSchema(c *gc.C, expected *charm.Actions, actual string) {
+func checkFullSchema(c *gc.C, expected *charm.Actions, actual []byte) {
 	expectYaml, err := yaml.Marshal(expected.ActionSpecs)
 	c.Assert(err, gc.IsNil)
 	// unmarshal and re-marshal to make sure we have same format
@@ -154,39 +153,17 @@ func checkFullSchema(c *gc.C, expected *charm.Actions, actual string) {
 	c.Check(string(actualResult), gc.Equals, string(expectYaml))
 }
 
-type actionSpecs [][]string
-
-func (slice actionSpecs) Len() int {
-	return len(slice)
-}
-
-func (slice actionSpecs) Less(i, j int) bool {
-	return slice[i][0] < slice[j][0]
-}
-
-func (slice actionSpecs) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
-}
-
-func checkTabbedSchema(c *gc.C, expected *charm.Actions, actual string) {
-	strippedActual := strings.Trim(actual, "\"\n")
-	strippedActual = strings.Replace(strippedActual, "\\t", "", -1)
-	resultLines := strings.Split(strippedActual, "\\n")
+func checkSimpleSchema(c *gc.C, expected *charm.Actions, actualOutput []byte) {
 	specs := expected.ActionSpecs
-	c.Assert(len(resultLines), gc.Equals, len(specs))
-	resultLinesToMatch := make([][]string, len(resultLines))
-	expectedLinesToMatch := make([][]string, len(specs))
-	for i, line := range resultLines {
-		resultLinesToMatch[i] = strings.Split(line, " -- ")
-	}
-	i := 0
+	expectedSpecs := make(map[string]string)
 	for name, spec := range specs {
-		expectedLinesToMatch[i] = []string{name, spec.Description}
-		i++
+		expectedSpecs[name] = spec.Description
+		if expectedSpecs[name] == "" {
+			expectedSpecs[name] = "No description"
+		}
 	}
-
-	sort.Sort(actionSpecs(resultLinesToMatch))
-	sort.Sort(actionSpecs(expectedLinesToMatch))
-
-	c.Check(resultLinesToMatch, jc.DeepEquals, expectedLinesToMatch)
+	actual := make(map[string]string)
+	err := yaml.Unmarshal(actualOutput, &actual)
+	c.Assert(err, gc.IsNil)
+	c.Check(actual, jc.DeepEquals, expectedSpecs)
 }

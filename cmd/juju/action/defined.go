@@ -21,7 +21,7 @@ type DefinedCommand struct {
 
 const definedDoc = `
 Show the actions available to run on the target service, with a short
-description.  To show the schema for the actions, use --schema.
+description.  To show the full schema for the actions, use --schema.
 
 For more information, see also the 'do' subcommand, which executes actions.
 `
@@ -29,9 +29,7 @@ For more information, see also the 'do' subcommand, which executes actions.
 // Set up the YAML output.
 func (c *DefinedCommand) SetFlags(f *gnuflag.FlagSet) {
 	// TODO(binary132) add json output?
-	c.out.AddFlags(f, "yaml", map[string]cmd.Formatter{
-		"yaml": cmd.FormatYaml,
-	})
+	c.out.AddFlags(f, "smart", cmd.DefaultFormatters)
 	f.BoolVar(&c.fullSchema, "schema", false, "display the full action schema")
 }
 
@@ -74,23 +72,22 @@ func (c *DefinedCommand) Run(ctx *cmd.Context) error {
 	if err != nil {
 		return err
 	}
-	actionSpecs := actions.ActionSpecs
-	numActionSpecs := len(actionSpecs)
-	if numActionSpecs == 0 {
+
+	output := actions.ActionSpecs
+	if len(output) == 0 {
 		return c.out.Write(ctx, "No actions defined for "+c.serviceTag.Id())
 	}
 
-	if !c.fullSchema {
-		tabbedResults := [][]string{}
-		for name, spec := range actionSpecs {
-			tabbedResults = append(tabbedResults, []string{name, spec.Description})
-		}
-		output, err := tabbedString(tabbedResults, " -- ")
-		if err != nil {
-			// This will never occur with this usage.  len(tabbedResults) == 2
-			return errors.Wrap(err, errors.New("action formatting failed"))
-		}
+	if c.fullSchema {
 		return c.out.Write(ctx, output)
 	}
-	return c.out.Write(ctx, actionSpecs)
+
+	shortOutput := make(map[string]string)
+	for name, action := range actions.ActionSpecs {
+		shortOutput[name] = action.Description
+		if shortOutput[name] == "" {
+			shortOutput[name] = "No description"
+		}
+	}
+	return c.out.Write(ctx, shortOutput)
 }
