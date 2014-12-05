@@ -45,6 +45,17 @@ var someCharmActions = &charm.Actions{
 				"foo": "baz",
 			},
 		},
+		"no-description": charm.ActionSpec{
+			Params: map[string]interface{}{
+				"bar": map[string]interface{}{
+					"baz": "foo",
+				},
+				"foo": "baz",
+			},
+		},
+		"no-params": charm.ActionSpec{
+			Description: "An action with no parameters.",
+		},
 	},
 }
 
