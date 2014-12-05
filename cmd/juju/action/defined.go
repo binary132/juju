@@ -36,7 +36,7 @@ func (c *DefinedCommand) SetFlags(f *gnuflag.FlagSet) {
 func (c *DefinedCommand) Info() *cmd.Info {
 	return &cmd.Info{
 		Name:    "defined",
-		Args:    "[--schema] <service name>",
+		Args:    "<service name>",
 		Purpose: "WIP: show actions defined for a service",
 		Doc:     definedDoc,
 	}
