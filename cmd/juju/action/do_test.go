@@ -157,7 +157,6 @@ func (s *DoSuite) TestRun(c *gc.C) {
 				resultMap := make(map[string]string)
 				err = yaml.Unmarshal(result, &resultMap)
 				c.Assert(err, gc.IsNil)
-				c.Logf("got resultMap %#v", resultMap)
 				c.Check(resultMap, jc.DeepEquals, expectedMap)
 			}
 		}()
