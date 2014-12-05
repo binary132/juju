@@ -4,12 +4,17 @@
 package action_test
 
 import (
+	"bytes"
+	"errors"
 	"strings"
 
+	"github.com/juju/juju/apiserver/params"
 	"github.com/juju/juju/cmd/juju/action"
 	"github.com/juju/juju/testing"
 	"github.com/juju/names"
+	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
+	"gopkg.in/yaml.v1"
 )
 
 type DoSuite struct {
@@ -100,69 +105,61 @@ func (s *DoSuite) TestInit(c *gc.C) {
 	}
 }
 
-// func (s *FetchSuite) TestRun(c *gc.C) {
-// 	tests := []struct {
-// 		should         string
-// 		withResults    []params.ActionResult
-// 		withAPIError   string
-// 		expectedErr    string
-// 		expectedOutput string
-// 	}{{
-// 		should:       "pass api error through properly",
-// 		withAPIError: "api call error",
-// 		expectedErr:  "api call error",
-// 	}, {
-// 		should:         "fail gracefully with no results",
-// 		withResults:    []params.ActionResult{},
-// 		expectedOutput: "No results for action \"action-service-name/0_a_0\"\n",
-// 	}, {
-// 		should:      "error correctly with multiple results",
-// 		withResults: []params.ActionResult{{}, {}},
-// 		expectedErr: "too many results for action \"action-service-name/0_a_0\"",
-// 	}, {
-// 		should: "pass through an error from the API server",
-// 		withResults: []params.ActionResult{{
-// 			Error: common.ServerError(errors.New("an apiserver error")),
-// 		}},
-// 		expectedErr: "an apiserver error",
-// 	}, {
-// 		should: "pretty-print action output",
-// 		withResults: []params.ActionResult{{
-// 			Status:  "complete",
-// 			Message: "oh dear",
-// 			Output: map[string]interface{}{
-// 				"foo": map[string]interface{}{
-// 					"bar": "baz",
-// 				},
-// 			},
-// 		}},
-// 		expectedOutput: "message: oh dear\n" +
-// 			"results:\n" +
-// 			"  foo:\n" +
-// 			"    bar: baz\n" +
-// 			"status: complete\n",
-// 	}}
-//
-// 	for i, t := range tests {
-// 		func() { // for the defer of restoring patch function
-// 			s.subcommand = &action.FetchCommand{}
-// 			c.Logf("test %d: it should %s", i, t.should)
-// 			client := &fakeAPIClient{
-// 				actionResults: t.withResults,
-// 			}
-// 			if t.withAPIError != "" {
-// 				client.apiErr = errors.New(t.withAPIError)
-// 			}
-// 			restore := s.BaseActionSuite.patchAPIClient(client)
-// 			defer restore()
-// 			//args := fmt.Sprintf("%s %s", s.subcommand.Info().Name, "some-action-id")
-// 			ctx, err := testing.RunCommand(c, s.subcommand, validActionId)
-// 			if t.expectedErr != "" || t.withAPIError != "" {
-// 				c.Check(err, gc.ErrorMatches, t.expectedErr)
-// 			} else {
-// 				c.Assert(err, gc.IsNil)
-// 				c.Check(ctx.Stdout.(*bytes.Buffer).String(), gc.Matches, t.expectedOutput)
-// 			}
-// 		}()
-// 	}
-// }
+func (s *DoSuite) TestRun(c *gc.C) {
+	tests := []struct {
+		should                 string
+		withArgs               []string
+		withParamsFileContents string
+		withParamsFileError    string
+		withAPIErr             string
+		withActionResults      []params.ActionResult
+		expectedErr            string
+	}{{
+		should:   "enqueue a basic action with no params",
+		withArgs: []string{validUnitId, "some-action"},
+		withActionResults: []params.ActionResult{{
+			Action: &params.Action{
+				Tag: validActionTagString,
+			},
+		}},
+	}}
+
+	for i, t := range tests {
+		func() {
+			c.Logf("test %d: it should %s: juju actions do %s", i,
+				t.should, strings.Join(t.withArgs, " "))
+			fakeClient := &fakeAPIClient{
+				actionResults: t.withActionResults,
+			}
+			if t.withAPIErr != "" {
+				fakeClient.apiErr = errors.New(t.withAPIErr)
+			}
+			restore := s.patchAPIClient(fakeClient)
+			defer restore()
+
+			s.subcommand = &action.DoCommand{}
+			ctx, err := testing.RunCommand(c, s.subcommand, t.withArgs...)
+
+			if t.expectedErr != "" || t.withAPIErr != "" {
+				c.Check(err, gc.ErrorMatches, t.expectedErr)
+			} else {
+				c.Assert(err, gc.IsNil)
+				// only one result?
+				c.Assert(len(t.withActionResults), gc.Equals, 1)
+				// result contains non-nil action?
+				c.Assert(t.withActionResults[0].Action, gc.NotNil)
+				// get the tag
+				expectedTag, err := names.ParseActionTag(t.withActionResults[0].Action.Tag)
+				c.Assert(err, gc.IsNil)
+				sillyKey := "Action queued with id"
+				expectedMap := map[string]string{sillyKey: expectedTag.Id()}
+				result := ctx.Stdout.(*bytes.Buffer).Bytes()
+				resultMap := make(map[string]string)
+				err = yaml.Unmarshal(result, &resultMap)
+				c.Assert(err, gc.IsNil)
+				c.Logf("got resultMap %#v", resultMap)
+				c.Check(resultMap, jc.DeepEquals, expectedMap)
+			}
+		}()
+	}
+}
