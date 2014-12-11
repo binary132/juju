@@ -174,7 +174,9 @@ func registerCommands(r commandRegistry, ctx *cmd.Context) {
 	r.RegisterSuperAlias("terminate-machine", "machine", "remove", twoDotOhDeprecation("machine remove"))
 
 	// Manage and control actions.
-	r.Register(action.NewActionCommand())
+	if featureflag.Enabled(action.FeatureFlag) {
+		r.Register(action.NewActionCommand())
+	}
 
 	// Manage state server availability.
 	r.Register(wrapEnvCommand(&EnsureAvailabilityCommand{}))

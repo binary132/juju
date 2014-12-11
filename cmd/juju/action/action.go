@@ -14,6 +14,10 @@ import (
 	"gopkg.in/juju/charm.v4"
 )
 
+// FeatureFlag is the name of the feature for the JUJU_DEV_FEATURE_FLAGS
+// envar.  Add this string to the envar to enable this action command.
+const FeatureFlag string = "action"
+
 var actionDoc = `
 "juju action" executes and manages actions on units, monitors their status,
 and retrieves their results.
