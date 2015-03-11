@@ -225,6 +225,13 @@ act:
 			"val": "somestr",
 		},
 	}, {
+		should: "insert a default value when an empty map is passed",
+		params: map[string]interface{}{},
+		schema: "simple",
+		expectedParams: map[string]interface{}{
+			"val": "somestr",
+		},
+	}, {
 		should: "insert a nested default value",
 		params: map[string]interface{}{"foo": "bar"},
 		schema: "complicated",
@@ -243,7 +250,8 @@ act:
 		// is tested in the gojsonschema package.
 		action, err := u.AddAction("act", t.params)
 		c.Assert(err, jc.ErrorIsNil)
-		c.Assert(action.Parameters(), jc.DeepEquals, t.expectedParams)
+		c.Check(action.Parameters(), jc.DeepEquals, t.expectedParams)
+		c.Check(t.params, jc.DeepEquals, t.expectedParams)
 	}
 }
 
