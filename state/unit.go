@@ -1770,9 +1770,6 @@ func (u *Unit) AddAction(name string, payload map[string]interface{}) (*Action, 
 	if len(name) == 0 {
 		return nil, errors.New("no action name given")
 	}
-	if payload == nil {
-		payload = make(map[string]interface{})
-	}
 	specs, err := u.ActionSpecs()
 	if err != nil {
 		return nil, err
@@ -1782,15 +1779,19 @@ func (u *Unit) AddAction(name string, payload map[string]interface{}) (*Action, 
 		return nil, errors.Errorf("action %q not defined on unit %q", name, u.Name())
 	}
 	// Reject bad payloads before attempting to insert defaults.
-	err = spec.ValidateParams(payload)
+	insertPayload := payload
+	if insertPayload == nil {
+		insertPayload = make(map[string]interface{})
+	}
+	err = spec.ValidateParams(insertPayload)
 	if err != nil {
 		return nil, err
 	}
-	err = spec.InsertDefaults(payload)
+	err = spec.InsertDefaults(insertPayload)
 	if err != nil {
 		return nil, err
 	}
-	return u.st.EnqueueAction(u.Tag(), name, payload)
+	return u.st.EnqueueAction(u.Tag(), name, insertPayload)
 }
 
 // ActionSpecs gets the ActionSpec map for the Unit's charm.
