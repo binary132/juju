@@ -258,7 +258,6 @@ act:
 		action, err := u.AddAction("act", t.params)
 		c.Assert(err, jc.ErrorIsNil)
 		c.Check(action.Parameters(), jc.DeepEquals, t.expectedParams)
-		c.Check(t.params, jc.DeepEquals, t.expectedParams)
 	}
 }
 
