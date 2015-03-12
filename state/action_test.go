@@ -232,6 +232,13 @@ act:
 			"val": "somestr",
 		},
 	}, {
+		should: "insert a default value when a nil map is passed",
+		params: nil,
+		schema: "simple",
+		expectedParams: map[string]interface{}{
+			"val": "somestr",
+		},
+	}, {
 		should: "insert a nested default value",
 		params: map[string]interface{}{"foo": "bar"},
 		schema: "complicated",

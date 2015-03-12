@@ -1770,6 +1770,9 @@ func (u *Unit) AddAction(name string, payload map[string]interface{}) (*Action, 
 	if len(name) == 0 {
 		return nil, errors.New("no action name given")
 	}
+	if payload == nil {
+		payload = make(map[string]interface{})
+	}
 	specs, err := u.ActionSpecs()
 	if err != nil {
 		return nil, err
