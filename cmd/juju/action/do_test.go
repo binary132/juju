@@ -135,7 +135,7 @@ func (s *DoSuite) TestInit(c *gc.C) {
 			validUnitId,
 			"valid-action-name",
 			"--params=foo.yml",
-			"foo.bar=2",
+			"foo.bar=\"2\"",
 			"foo.baz.bo=3",
 			"bar.foo=hello",
 		},
@@ -143,7 +143,7 @@ func (s *DoSuite) TestInit(c *gc.C) {
 		expectAction:         "valid-action-name",
 		expectParamsYamlPath: "foo.yml",
 		expectKVArgs: [][]string{
-			{"foo", "bar", "2"},
+			{"foo", "bar", "\"2\""},
 			{"foo", "baz", "bo", "3"},
 			{"bar", "foo", "hello"},
 		},
@@ -260,6 +260,7 @@ func (s *DoSuite) TestRun(c *gc.C) {
 			"out.name=bar",
 			"out.kind=tmpfs",
 			"out.num=3",
+			"out.dum=\"3\"",
 			"out.boolval=y",
 		},
 		withActionResults: []params.ActionResult{{
@@ -273,6 +274,7 @@ func (s *DoSuite) TestRun(c *gc.C) {
 					"name":    "bar",
 					"kind":    "tmpfs",
 					"num":     3,
+					"dum":     "3",
 					"boolval": true,
 				},
 			},
